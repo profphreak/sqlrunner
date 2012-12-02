@@ -1,0 +1,348 @@
+
+SQLRunner User Guide
+
+***********************************************************
+** What's SQLRunner: 
+***********************************************************
+
+It's a simple JDBC sql runner, with variable replacement. 
+No fancy features. Script-friendly configuration and execution.
+Standard input/output piping, etc.
+
+You can use SQLRunner to dump data to a .csv format from one
+database, and load that data into another database.
+
+***********************************************************
+** Where to get SQLRunner: 
+***********************************************************
+
+You can grab SQLRunner from http://theparticle.com/sqlrunner
+
+Just uncompress the whole file into your home folder, e.g;
+/home/$HOME/SQLRunner 
+
+***********************************************************
+** Configuring SQLRunner:
+***********************************************************
+
+Everytime "sqlrunner" (SQLRunner/bin/sqlrunner) is executed it: 
+    
+* includes all database drivers in SQLRunner/jdbc/ folder in CLASSPATH.
+* runs all .sql and .properties files in SQLRunner/init/
+* runs all .sql and .properties files in ~/.sqlrunner/ 
+
+(note that may cause problems if you need to run code in order 
+to run code, etc. circular loop).
+
+That means you can configurate SQLRunner by creating (for example):
+~/.sqlrunner/info.properties
+with contents:
+
+nzprod_user=youruser
+nzprod_pass=XXXXXXXXX
+nzprod_dbname=databasename
+nzprod_host=hostname
+nzprod_url=jdbc:netezza://&&host/&&dbname
+nzprod_driver=org.netezza.Driver
+
+dwprod_user=youruser
+dwprod_pass=XXXXXXXXX
+dwprod_tns=(DESCRIPTION=(LO... Y=5))))
+dwprod_dbname=databasename
+dwprod_url=jdbc:oracle:thin:@&&tns
+dwprod_driver=oracle.jdbc.driver.OracleDriver
+
+
+Then when you start SQLRunner, it will know where to connect, e.g.:
+
+$ echo "info"|sqlrunner db=nzprod -
+Driver Version: Release 4.4 jdbc3 driver [build 7065]
+Database: Netezza NPS
+Database Version: 5.0.8
+User: XXXXXXX
+
+The above command tells SQLRunner to use db=nzprod, so it will look for: 
+    nzprod_user, nzprod_pass, nzprod_url, nzprod_driver 
+for connection information. 
+(and &&host will be picked up from nzprod_host, etc.)
+
+
+Note that everything you put into .properties file, you can specify 
+at command line... which overrides values in .properties file:
+
+e.g.: to have sqlrunner connect to "DBNAME2" instead of "DBNAME":
+
+$ echo "show tables" |sqlrunner db=nzprod dbname=DBNAME2 -
+...
+
+***********************************************************
+** Basic Usage
+***********************************************************
+
+Create an INPUT.sql file, put SQL statements into it, e.g.:
+
+select * from DBNAME..SOMETABLENAME; 
+
+and then run that file against nzprod via:
+
+sqlrunner db=nzprod INPUT.sql
+
+You can also have parameters in the file, e.g.:
+
+select * from DBNAME..SOMETABLENAME where tdate='&&tdate'; 
+
+Then you can run it via:
+
+sqlrunner db=nzprod tdate=20101231 INPUT.sql
+
+You can have multiple files at command line, e.g. 
+
+sqlrunner db=nzprod tdate=20101231 INPUT1.sql INPUT2.sql INPUT3.sql
+
+If input file is "-" then sqlrunner will read standard input. 
+e.g:
+
+echo "select * from DBNAME..SOMETABLENAME where tdate='&&tdate'" |sqlrunner db=nzprod tdate=20101231 - 
+
+*****************
+Examples:
+
+** Select all "DBNAME..SOMETABLENAME" records for 1 day and put them into 
+a pipe delimited file:
+
+echo "select * from DBNAME..SOMETABLENAME where tdate='20101231'"|sqlrunner db=nzprod delim="|" - > SOMETABLENAME.20101231.dat
+
+
+** Select a list of all tables in DBNAME and put the list into a file.
+
+echo "show tables"|sqlrunner db=nzprod dbname=DBNAME - |cut -d, -f3 > DBNAME.tables.txt
+
+** For each table in DBNAME.tables.txt, dump the data to a pipe delimited file for 20101231:
+
+cat DBNAME.tables.txt | while read t; do
+    echo "select * from $t where tdate='20101231'"|sqlrunner db=nzprod dbname=DBNAME delim="|" - |gzip -c > $t.20101231.dat.gz
+done
+
+** Dump all tables in DBNAME for the month of December 2010:
+
+# get "December 2010" tdates
+echo "select distinct tdate from TABLEWITHDATES where tdate between '20101201' and '20101231' order by 1"|sqlrunner db=nzprod dbname=DBNAME - > DBNAME.tdates.txt 
+
+# get "DBNAME" tables
+echo "show tables"|sqlrunner db=nzprod dbname=DBNAME - |cut -d, -f3 > DBNAME.tables.txt
+
+# get all data by tdate/table
+
+cat DBNAME.tdates.txt | while read tdate; do
+    cat DBNAME.tables.txt | while read table; do
+        echo "select * from $table where tdate='$tdate'"|sqlrunner db=nzprod dbname=DBNAME delim="|" - |gzip -c > $table.$tdate.dat.gz
+    done
+done
+
+
+** create DDL for SOMETABLENAME table.
+
+# for DDL, you use the fhead2ddl.pl utility, which takes a "full header"
+(header names with types), and outputs a create table statement for
+either oracle or netezza.
+
+# to get full header specify "fhead" at command line.
+echo "select * from DBNAME..SOMETABLENAME where 1=0"|sqlrunner db=nzprod fhead - 
+
+$ echo "select * from DBNAME..SOMETABLENAME where 1=0"|sqlrunner db=nzprod fhead -
+fieldname~VARCHAR~5~0~0~1,field2~NUMBER~0~10~0~1,TDATE~DATE~10~10~0~1
+
+# This full header can then be piped into fhead2ddl.pl utility:
+echo "select * from DBNAME..SOMETABLENAME where 1=0"|sqlrunner db=nzprod fhead - | fhead2ddl.pl type=nz table=SOMETABLENAME 
+
+CREATE TABLE SOMETABLENAME (fieldname VARCHAR(5),field2 NUMERIC(10),TDATE DATE...) distribute on random
+
+** create DDL for all tables in DBNAME
+
+echo "show tables"|sqlrunner db=nzprod dbname=DBNAME - |cut -d, -f3 > DBNAME.tables.txt
+
+
+** For each table in DBNAME.tables.txt, generate DDL.
+
+cat DBNAME.tables.txt | while read t; do
+    echo "select * from $t where 1=0"|sqlrunner db=nzprod fhead dbname=DBNAME - | fhead2ddl.pl type=nz table=$t > $t.ddl.sql
+done
+
+# you can specify type=ora for Oracle DDL.
+
+
+** Load pipe delimited data in SOMETABLENAME.20101231.dat into SOMETABLENAME table, with SOMETABLENAME.fhead as DDL. 
+
+# SOMETABLENAME.fhead can be generated via: 
+echo "select * from DBNAME..SOMETABLENAME where 1=0"|sqlrunner db=nzprod fhead - > SOMETABLENAME.fhead 
+
+# into DWPROD (oracle):
+cat SOMETABLENAME.20101231.dat | dbload.pl db=dwprod table=SOMETABLENAME delim="|" fhead=SOMETABLENAME.fhead 
+
+You can also do:
+cat SOMETABLENAME.20101231.dat | dbload.pl db=dwprod table=SOMETABLENAME delim="|" fhead=`cat SOMETABLENAME.fhead` 
+or 
+cat SOMETABLENAME.20101231.dat | dbload.pl db=dwprod table=SOMETABLENAME delim="|" fhead=`echo "select * from DBNAME..SOMETABLENAME where 1=0"|sqlrunner db=nzprod fhead -` 
+
+If the table is already in DWPROD (you don't need to create new table), then you can omit the "fhead" parameter completely, e.g.:
+cat SOMETABLENAME.20101231.dat | dbload.pl db=dwprod table=SOMETABLENAME delim="|"
+
+# to load into Netezza (identical):
+cat SOMETABLENAME.20101231.dat | dbload.pl db=nzprod table=SOMETABLENAME delim="|"
+
+# SQLrunner uses the driver name to determine whether to 
+# use nzload or sqlldr.
+
+
+** Move SOMETABLENAME from Oracle into Netezza, 
+** named "MYSOMETABLENAME".
+
+echo "select * from SOMETABLENAME where 1=0"|sqlrunner db=dwprod fhead - > SOMETABLENAME.fhead
+
+Dump data: 
+
+echo "select * from SOMETABLENAME where tdate='20101231"|sqlrunner db=dwprod delim="|" - |gzip -c > SOMETABLENAME.20101231.dat.gz
+
+Move SOMETABLENAME.fhead and SOMETABLENAME.20101231.dat.gz via portable drive anywhere you want.
+
+Create table:
+
+cat SOMETABLENAME.fhead | fhead2ddl.pl type=nz table=MYSOMETABLENAME |sqlrunner db=nzprod - 
+
+Load the data:
+
+cat SOMETABLENAME.20101231.dat.gz |gzip -dc | dbload.pl db=nzdev table=MYSOMETABLENAME delim="|" 
+
+The above two steps (creating table and loading) can be done in 1 step by specifying fhead param to dbload.pl utility, e.g.
+
+cat SOMETABLENAME.20101231.dat.gz |gzip -dc | dbload.pl db=nzdev table=MYSOMETABLENAME delim="|" fhead=SOMETABLENAME.fhead 
+
+
+***********************************************************
+** SQLRunner directory tree and important files
+***********************************************************
+
+SQLRunner/bin/sqlrunner
+    -- Main executable to run SQL. Reads stdin (or command line file)
+    -- and executes queries one by one. Output goes to standard output.
+
+SQLRunner/bin/sqlrunner.cmd
+    -- Main executable for Windows
+
+SQLRunner/bin/dbload.pl
+    -- Generic database loader. Reads standard input and loads it 
+    -- into a specified database. Uses db driver name to determine
+    -- whether to do sqlldr or nzload.
+
+SQLRunner/bin/fhead2ddl.pl
+    -- Utility to turn "fhead" data into a "create table" statement.
+
+SQLRunner/bin/fhead2ctl.pl
+    -- Internal utility to convert "fhead" data into an 
+    -- Oracle control file. Used by dbload.pl script.
+
+SQLRunner/bin/tns2props.pl
+    -- semi-internal utility to parse Oracle tns file and generate
+    -- a .properties file. e.g. 
+    tns2props.pl < /local/oracle/product/10.2.0/network/admin/tnsnames.ora > ~/.sqlrunner/tns.properties 
+    
+    The above will create tns.properties file that will have all the definitions from tnsnames in it. e.g. 
+
+All you have to do is specify dwprod_user & dwprod_pass in ~/.sqlrunner/info.properties.
+
+
+SQLRunner/init/init.properties
+    -- Initial configuration file that's applied to all connections.
+    -- Just has default format types for output.
+        orayyyymmdd=alter session set nls_date_format='yyyymmdd'
+        timestampformat=yyyyMMdd hh:mm:ss
+        timeformat=HH:mm:ss
+        dateformat=yyyyMMdd
+
+SQLRunner/lib/SQLRunner-YYYYMMDD.jar
+    -- Main SQLRunner jar file (date in YYYYMMDD specifies version).
+
+SQLRunner/jdbc/ 
+    -- folder that has JDBC drivers. Included in classpath by 
+    -- defualt everytime sqlrunner executes. e.g.: 
+    
+        SQLRunner/jdbc/jtds-1.2.2.jar
+        SQLRunner/jdbc/mysql-connector-java-5.1.5-bin.jar
+        SQLRunner/jdbc/nzjdbc3.jar
+        SQLRunner/jdbc/ojdbc14.jar
+        SQLRunner/jdbc/postgresql-8.2-507.jdbc4.jar
+        SQLRunner/jdbc/sqljdbc4.jar
+        SQLRunner/jdbc/sqljdbc.jar
+
+SQLRunner/src/db/SQLRunner.java
+    -- entire source code for SQLRunner/lib/SQLRunner-YYYYMMDD.jar
+    -- you can compile the whole SQL runner thing by going into
+    -- root folder SQLRunner/, and running "ant".
+
+
+
+
+*******************************************************
+More Examples
+
+# move data across network (run code on $HOST dumping data 
+
+for tdate in 20101231; do
+
+for t in table1 table2 ; do    
+
+    ssh $HOST "echo \"select * from $t where 1=0\" |sqlrunner db=oradev fhead -" 2>/dev/null > $t.fhead
+
+    ssh $HOST "echo \"select * from $t where tdate='$tdate'\"|sqlrunner db=oradev delim='|' - |gzip -c" 2>/dev/null > $t.$tdate.dat.gz
+
+done
+
+done
+
+
+# load dumped data
+for t in table1 table2 ; do    
+    # echo "drop table $t"|sqlrunner db=nzdev - 
+
+    cat $t.fhead | fhead2ddl.pl type=nz table=$t |sqlrunner db=nzdev log -     
+
+    echo "loading $t for 20101231";
+
+    echo "delete from $t where tdate='20101231'"|sqlrunner db=nzdev - 
+
+    gzip -dc $t.20101231.dat.gz | dbload.pl db=nzdev table=$t delim="|"
+
+done
+
+ 
+# microseconds in oracle dump
+# get header, and turn timestamps into 
+# to_char($field,'YYYYMMDD HH24:MI:SS.FF6')
+head=`echo "select * from $TABLE where 1=0"|sqlrunner db=$somename fhead - |perl -ne'print join ",",map { ($a,$b)=split/~/; $b=~m/timestamp/i ? "to_char($a,".chr(39)."YYYYMMDD HH24:MI:SS.FF6".chr(39).")" : $a } split/,/;'`
+
+# dump data with "good" timestamps
+echo "select $head from $TABLE" |sqlrunner db=$somename delim="|" - > somewhere
+
+# load data, specifying time format.
+cat test.dat | dbload.pl db=somename table=$TABLE delim="|" timeformat="HH24:MI:SS.FF6"
+
+
+---------------------------------------------------------------------
+-- load tab delimited data with MM/DD/YYYY dates into Netezza;
+-- same idea for YYYY-MM-DD dates, etc.
+---------------------------------------------------------------------
+
+echo "delete from $TABLE where TDATE='20101231'"|sqlrunner db=nzdev - 
+
+for f in `ls rawfile.20101231.*.dat.gz`; do
+    date;
+    echo "loading $f";
+    
+    cat "$f" |gzip -dc | dbload.pl db=nzdev table=$TABLE delim="\t" datestyle=mdy datedelim="/" 
+
+done
+
+
+-- load data while filtering non-printable characters.
+cat data.dat | perl -ne's/[\x7F-\xFF]//sgi; print' | dbload.pl db=gpdb table=mast delim="|"
+ 

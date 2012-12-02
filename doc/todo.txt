@@ -1,0 +1,11 @@
+refactor the code.
+
+We need to include the following lines in Oracle sql scripts to ensure that it abends for any oserror or sqlerror
+
+	whenever oserror exit failure rollback
+	whenever sqlerror exit sql.sqlcode rollback
+
+If we want the scripts to continue even in the case of an sql error (e.g.,  in the case of 'drop table' where the table may not exist) we can include the following line:
+
+	whenever sqlerror continue
+

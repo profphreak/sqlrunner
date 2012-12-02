@@ -1,0 +1,62 @@
+#!/usr/bin/perl
+
+use strict;
+
+# Copyright (c) 2005, Alex Sverdlov
+
+# This work is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by 
+# the Free Software Foundation, version 2, or higher.
+
+
+# program to run commands in multiple processes
+# cat commands.txt | pdist.pl cmd='somecommand $_' threads=5
+# will run somecommand with argument from commands.txt (one by one) 
+# with maximum 5 instances at any given time.
+
+# can also be used in pipe mode, eg:
+# cat commands.txt | pdist.pl cmd='cmd1 $_' threads=5 pipe | pdist.pl cmd='cmd2 $_' threads=2
+
+#########################################################################################
+# arguments.
+my %args;
+map {my ($n,$v)=split/=/,$_,2; $args{$n}= defined($v) ? $v:1 } @ARGV;
+
+die qq{usage: [ls] | $0 [cmd='command \$_'] [threads=16]\n} unless $args{cmd};
+
+my $numProcs=0;
+while(<STDIN>){
+    chomp;
+    my $maxThisTime = getMaxProcs();
+
+    while($numProcs >= $maxThisTime){
+        $numProcs-- if wait();
+    }
+    if(fork()){
+        $numProcs++;
+    }else{
+        my $cmd = $args{cmd};
+        $cmd=~s/\$_/$_/sgi;
+        #print "running [$cmd]\n";
+        # change to chdir before running (if specified).
+        chdir "$args{chdir}" if defined $args{chdir};
+        `$cmd`;
+        print "$_\n" if defined $args{pipe};
+        exit;
+    }
+}
+1 while(wait() > 0);
+
+sub getMaxProcs {
+    if(-f $args{threads}){
+        open my $in,$args{threads} or return 1;
+        local $_ = <$in>;
+        close $in;
+        chomp $_;
+        return $_ if $_ >= 1 && $_ <= 64;   # sane[?] value.
+    }elsif($args{threads} =~ m/\d+/ && $args{threads} <= 64 &&  $args{threads} >= 1){
+        return int($args{threads});
+    }
+    return 1;
+}
+

@@ -1,0 +1,122 @@
+Variables that can be def (or set) to tweak the behavior of SQLRunner
+
+
+console     startup an interactive interface (command prompt thing).
+
+catalog     current catalog
+schema      current schema
+
+showvar NAME    shows the value of variable.
+
+env     on/off  display environment right before executing anything.
+
+log     on/off  display log (what query is being executed, and how long it takes).
+
+pretend
+debug   on/off  don't actually hit the database.
+
+
+db      name of database to use. defaults to "db".
+
+url     has the form of db_url (where "db" is whatever database name "db" variable is set to).
+
+user    has the form of db_user (username for database).
+pass    has the form of db_pass (password for database).
+driver  has the form of db_driver (name of jdbc driver class; this has to be in classpath).
+
+show tables: command to display all table names.
+show catalogs: command to display all catalogs.
+show schemas: command to display all schemas.
+show views:  shows all views.
+show table types: command to display all table types.
+
+desc TABLENAME;
+describe TABLENAME;     display details of a table.
+
+info    display database informatio (database name, version, username).
+
+
+outformat   csv/html    Picks output format. Default is csv.
+                (note that html output can be saved with .xls extension).
+
+dateformat  what format output dates default to; default is yyyyMMdd.
+
+delim       The delimiter to use in "csv" output. Default is ','
+
+head        Display column names for all output.
+fhead       Display column names and types for all output.
+
+last        Variable that stores the last row of the last resultset.
+
+
+     * of <?= $somevariable ?>, &&somevariable, \&somevariable with
+
+lineno      display input line numbers at the command prompt.
+
+
+/*   */     multiline comments.
+
+#, --, //   single line comments.
+
+gocmd       run buffer. default value '/'. Similar to '/' in sqlplus.
+
+cmdseparator    run last command. default value ';'. Similar to ';' in just about all databases.
+
+errors  on/off  flag to determine if errors cause program termination 
+
+
+set name1 name2 name3... off
+set name1 name2 name3... on
+            set a particular variable to on/off value.
+
+
+def name=value
+define name='value';
+        define a variable to a particular value.
+
+
+spool filename
+    write output of sql queries to this output.
+
+    if filename ends with .gz, then output is gzip compressed, example:
+    
+    def tdate='20080101';
+    spool &&tdate._data.csv.gz
+
+    will write output to 20080101_data.csv.gz, etc.
+
+spool off   close previous output. start writing to standard output.
+
+@filename   include file. this can be recursive.
+    if filename ends with .properties, the file is loaded as system properties.
+
+
+exit        exit the whole program (with exit code 0).
+
+quit        stop processing current input. this is similar to exit, unless we're in an included file (see @filename).
+
+
+command line usage:
+    - (read standard input).
+    file.properties     load the properties file.
+    file.sql            run the sql file.
+    name=value      sets variable to that value.
+    name            sets varialbe "name" to value 'on'.
+
+
+
+
+COLUMNNAME_format to replace default column format, ie: 
+
+echo "
+def COLNAME_format='yyyyMMdd HH:mm:ss';
+select colname 
+from blahtable partition (blahtable_20080418);
+" |sqlrunner db=somedb head - |head 
+
+to_char(colname,'YYYYMMDD') and to_char(colname,'HH24MISS')
+
+
+
+
+

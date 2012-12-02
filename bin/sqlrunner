@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Copyright (c) 2005, Alex Sverdlov
+
+# This work is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by 
+# the Free Software Foundation, version 2, or higher.
+
+
+binname=`dirname $0`;
+basedir="$binname/..";
+
+if [ $# == '0' ] || [ `echo "$@" |grep -- "-help"` ]; then
+    echo "usage: $0 db=dbname user=dbuser pass=dbpass filename.sql";
+    exit;
+fi;
+
+for prop in `ls $basedir/lib/*jar $basedir/jdbc/*jar 2>/dev/null`; do
+    export CLASSPATH="$CLASSPATH:$prop";    
+done
+
+for prop in `ls $basedir/init/*properties $basedir/init/*sql 2>/dev/null`; do
+    args="$args $prop";
+done
+
+for prop in `ls ~/.sqlrunner/*properties ~/.sqlrunner/*sql 2>/dev/null`; do
+    args="$args $prop";
+done
+
+java db.SQLRunner $args "$@"
+
+exit $?;

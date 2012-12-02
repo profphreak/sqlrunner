@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Copyright (c) 2005, Alex Sverdlov
+
+# This work is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by 
+# the Free Software Foundation, version 2, or higher.
+
+
+export PGPASSWORD=`echo "echo &&pass"|sqlrunner $@ -`;
+export PGUSER=`echo "echo &&user"|sqlrunner $@ -`;
+export PGDATABASE=`echo "echo &&dbname"|sqlrunner $@ -`;
+export PGHOST=`echo "echo &&host"|sqlrunner $@ -`;
+
+psql -v FETCH_COUNT=1000
+
+exit "$?";

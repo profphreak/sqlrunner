@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Copyright (c) 2005, Alex Sverdlov
+
+# This work is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by 
+# the Free Software Foundation, version 2, or higher.
+
+
+export NZ_PASSWORD=`echo "echo &&pass"|sqlrunner $@ -`;
+export NZ_USER=`echo "echo &&user"|sqlrunner $@ -`;
+export NZ_DATABASE=`echo "echo &&dbname"|sqlrunner $@ -`;
+export NZ_HOST=`echo "echo &&host"|sqlrunner $@ -`;
+
+nzsql
+
+exit "$?";
