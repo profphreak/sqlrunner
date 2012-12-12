@@ -7,6 +7,8 @@
 
 # Copyright (c) 2012, Alex Sverdlov
 
+# Wed Dec 12 02:18:01 EST 2012
+
 # This work is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by 
 # the Free Software Foundation, version 2, or higher.
@@ -54,7 +56,10 @@ if($args{help} || $args{'-help'} || $args{'--help'}){
             range, rows
             
         Supported functions: 
-            row_number  - assign distinct number to every row in partition           
+            row_number  - assign distinct number to every row in partition
+            rank        - assign a rank; ranks() for string version
+                        - specify "oby" (order by) column.
+            dense_rank  - assign a dense rank; dense_ranks() for string version
             count       - count all records within partition
                         - (expensive, reads entire partition into ram).
             last_value  - gets last value in window (ignore nulls supported).                        
@@ -112,11 +117,37 @@ my $udaf = {
         push=> sub { my ($o,$v) = @_; $o->{cnt}++; },
         set=> sub { my ($o,$r) = @_; $$r = $o->{cnt} },
     },
+    dense_rank => {
+        init=> sub { my ($o) = @_; $o->{cnt}=1; $o->{incol}=defined($oby) ? $oby : 0; },
+        push=> sub { my ($o,$v) = @_; 
+            $o->{l}=$v unless defined($o->{l}); 
+            $o->{cnt}++ if $v > $o->{l}; $o->{l}=$v;
+        },
+        set=> sub { my ($o,$r) = @_; $$r = $o->{cnt} },
+    },
+    rank => {
+        init=> sub { my ($o) = @_; $o->{cnt}=1; $o->{cnt2}=1; $o->{incol}=defined($oby) ? $oby : 0; },
+        push=> sub { my ($o,$v) = @_; $o->{l}=$v unless defined($o->{l}); $o->{cnt}=$o->{cnt2} if $v > $o->{l}; $o->{l}=$v; $o->{cnt2}++; },
+        set=> sub { my ($o,$r) = @_; $$r = $o->{cnt} },
+    },
+    dense_ranks => {
+        init=> sub { my ($o) = @_; $o->{cnt}=1; $o->{incol}=defined($oby) ? $oby : 0; },
+        push=> sub { my ($o,$v) = @_; 
+            $o->{l}=$v unless defined($o->{l}); 
+            $o->{cnt}++ if $v gt $o->{l}; $o->{l}=$v;
+        },
+        set=> sub { my ($o,$r) = @_; $$r = $o->{cnt} },
+    },
+    ranks => {
+        init=> sub { my ($o) = @_; $o->{cnt}=1; $o->{cnt2}=1; $o->{incol}=defined($oby) ? $oby : 0; },
+        push=> sub { my ($o,$v) = @_; $o->{l}=$v unless defined($o->{l}); $o->{cnt}=$o->{cnt2} if $v gt $o->{l}; $o->{l}=$v; $o->{cnt2}++; },
+        set=> sub { my ($o,$r) = @_; $$r = $o->{cnt} },
+    },
     count => {
         init=> sub { my ($o) = @_; $o->{cnt}=0; $o->{preceding}=-1; $o->{following}=-1; },
         push=> sub { my ($o,$v) = @_; $o->{cnt}++; },
         set=> sub { my ($o,$r) = @_; $$r = $o->{cnt} },        
-    }, 
+    },
     last_value => {
         init=> sub { my ($o) = @_; $o->{a}=[]; },
         push=> sub { my ($o,$v) = @_; 
@@ -162,23 +193,30 @@ my $udaf = {
         init=> sub { my ($o) = @_; $o->{sum}=0; $o->{cnt}=0; },
         push=> sub { my ($o,$v) = @_; if(defined($v)){ $o->{sum}+=$v; $o->{cnt}++; } },
         shift=> sub { my ($o,$v) = @_; if(defined($v)){ $o->{sum}-=$v; $o->{cnt}--; } },
-        set=> sub { my ($o,$r) = @_; $$r = sprintf("%-.16g",$o->{sum} / $o->{cnt}) if $o->{cnt}!=0; },
+        set=> sub { my ($o,$r) = @_; 
+            my $v = $o->{sum} / $o->{cnt} if $o->{cnt}!=0;
+            if(defined($v)){
+                $$r = abs($v) < 0.000001 ? 0 : sprintf("%-.8f",$v);
+            }
+        },
     },
     stddev => {
         init=> sub { my ($o) = @_; $o->{sum}=0; $o->{sum2}=0; $o->{cnt}=0; },
         push=> sub { my ($o,$v) = @_; if(defined($v)) { $o->{sum}+=$v; $o->{sum2}+=$v*$v; $o->{cnt}++; } },
         shift=> sub { my ($o,$v) = @_; if(defined($v)) { $o->{sum}-=$v; $o->{sum2}-=$v*$v; $o->{cnt}--; } },
         set=> sub { my ($o,$r) = @_; 
-            my $v=($o->{sum2} - $o->{sum}*$o->{sum}/$o->{cnt})/($o->{cnt}-1) if $o->{cnt}>=2; 
-            $v=0 if defined($v) && abs($v) < 0.000001;
-            $$r = defined($v) && $v>=0 ? sprintf("%-.16g",sqrt($v)) : undef;  # ensure we get a NULL out
+            my $v=($o->{sum2} - $o->{sum}*$o->{sum}/$o->{cnt})/($o->{cnt}-1) if $o->{cnt}>=2;
+            if(defined($v)){
+                $$r = abs($v) < 0.000001 ? 0 : sprintf("%-.8f",sqrt($v));
+            }
         },
     },
     sum => {
         init=> sub { my ($o) = @_; $o->{sum}=0;  },
         push=> sub { my ($o,$v) = @_; if(defined($v)) { $o->{sum}+=$v; } },
         shift=> sub { my ($o,$v) = @_; if(defined($v)) { $o->{sum}-=$v; } },
-        set=> sub { my ($o,$r) = @_; $$r = $o->{sum}; },
+        set=> sub { my ($o,$r) = @_; my $v = $o->{sum}; 
+        $$r = $v==int($v) ? sprintf("%d",$v) : sprintf("%-.8f",$v) },
     },
     max_u => {
         push=> sub { my ($o,$v) = @_; $o->{max}=$v if !defined($o->{max}) || $o->{max}<$v },
@@ -236,6 +274,7 @@ while($args{append} =~ m/(\w+)\s*\((.*?)\)\s*,?/sgi){
     $conf->{preceding} = $1 if $attribs =~ m/(\w+)\s+pre(ceding)?/si;
     $conf->{following} = $1 if $attribs =~ m/(\w+)\s+fol(lowing)?/si;
     $conf->{inull} = 1 if $attribs =~ m/inull|ignore\s*null/si;
+    $conf->{id} = $#$funcs + 1;
     push @$funcs,$conf;
 }
 
@@ -269,7 +308,7 @@ sub mkprtreader ($) {
             local $_ = $peek;
             return unless defined $_; # nothing read            
             $cpby = $_->[-1] unless defined $cpby;  # define current partition
-            return if $cpby ne $_->[-1];  # if moved to diff partition            
+            return if defined($cpby) && $cpby ne $_->[-1];  # if moved to diff partition
             $peek = $it->();    # peek into next record
             pop @$_;            # remove partition column
             return $_;
@@ -319,48 +358,53 @@ sub mkrangereader {
 # read window of records
 sub mkwinreader {
     my ($it,$conf) = @_;
-    my $state = $conf;      # conf is the state.
+    $conf = { %$conf };         # conf is state
+    our $input_columns;
     my $fname = $conf->{func};
     my $func = $udaf->{$fname};
+    
     # is there an unbounded preceding version of this func?
     $func = $udaf->{$fname.'_u'} if $conf->{preceding} < 0 && defined($udaf->{$fname.'_u'});
-    $func->{init}($state) if $func->{init};
+    $func->{init}($conf) if $func->{init};
+    my ($oby,$incol) = @{$conf}{qw(oby incol)};
+    my $outcol = $input_columns + $conf->{id};
+    $it = imap(sub { [$_->[$oby], $_->[$incol], \$_->[$outcol] ] },$it);
 
     if($conf->{following} != 0){
-        my $f = mkrangereader($it,$conf->{following}, sub { $func->{push}($state,$_->[1]); } );
+        my $f = mkrangereader($it,$conf->{following}, sub { $func->{push}($conf,$_->[1]); } );
         if($conf->{preceding} < 0){
-            return imap { $func->{set}($state,$_->[2]);$_ } $f;
+            return imap { $func->{set}($conf,$_->[2]);$_ } $f;
         }elsif($conf->{preceding} > 0){
             return mkrangereader(
-                mkrangereader($f,$conf->{preceding},sub { $func->{set}($state,$_->[2]); } ),
+                mkrangereader($f,$conf->{preceding},sub { $func->{set}($conf,$_->[2]); } ),
                 0,
-                sub { $func->{shift}($state,$_->[1]); }
+                sub { $func->{shift}($conf,$_->[1]); }
             );
         }elsif($conf->{preceding} == 0 && $conf->{current_row}){
-            return mkrangereader( mkrangereader($f,0,sub { $func->{set}($state,$_->[2]); }), 0,
-                sub { $func->{shift}($state,$_->[1]); } );
+            return mkrangereader( mkrangereader($f,0,sub { $func->{set}($conf,$_->[2]); }), 0,
+                sub { $func->{shift}($conf,$_->[1]); } );
         }elsif($conf->{preceding} == 0 && !$conf->{current_row}){
-            return mkrangereader( mkrangereader($f,0,sub { $func->{shift}($state,$_->[1]); }), 0,
-                sub { $func->{set}($state,$_->[2]); } );        
+            return mkrangereader( mkrangereader($f,0,sub { $func->{shift}($conf,$_->[1]); }), 0,
+                sub { $func->{set}($conf,$_->[2]); } );        
         }
     }elsif($conf->{preceding} < 0){
         if($conf->{current_row}){
-            return imap { $func->{push}($state,$_->[1]); $func->{set}($state,$_->[2]);$_ } $it;
+            return imap { $func->{push}($conf,$_->[1]); $func->{set}($conf,$_->[2]);$_ } $it;
         }else{
-            return imap { $func->{set}($state,$_->[2]); $func->{push}($state,$_->[1]);$_ } $it;
+            return imap { $func->{set}($conf,$_->[2]); $func->{push}($conf,$_->[1]);$_ } $it;
         }
     }elsif($conf->{preceding} > 0){
         return mkrangereader(
             mkrangereader($it, $conf->{preceding},
                 $conf->{current_row} ? 
-                sub { $func->{push}($state,$_->[1]); $func->{set}($state,$_->[2]) } :
-                sub { $func->{set}($state,$_->[2]); $func->{push}($state,$_->[1]) } 
+                sub { $func->{push}($conf,$_->[1]); $func->{set}($conf,$_->[2]) } :
+                sub { $func->{set}($conf,$_->[2]); $func->{push}($conf,$_->[1]) } 
             ), 
             0,  # range 0  
-            sub { $func->{shift}($state,$_->[1]); } 
+            sub { $func->{shift}($conf,$_->[1]); } 
         );
     }else{
-        return imap { $func->{push}($state,$_->[1]); $func->{set}($state,$_->[2]); $func->{shift}($state,$_->[1]);$_ } $it;
+        return imap { $func->{push}($conf,$_->[1]); $func->{set}($conf,$_->[2]); $func->{shift}($conf,$_->[1]);$_ } $it;
     }
 }
 
@@ -372,24 +416,14 @@ my $prtit = mkprtreader
 
 while(my $it = $prtit->()){     # for all partition
     my $buf = [];
-
-    my $its = [];
-    our $input_columns;
-    for(my $i=0;$i<=$#$funcs;$i++){
-        my ($oby,$incol) = @{$funcs->[$i]}{qw(oby incol)};
-        my $outcol = $input_columns + $i;
-        push @$its,mkwinreader(
-            imap(sub { [$_->[$oby], $_->[$incol], \$_->[$outcol] ] }, mkbufreader($it,$buf)),
-            $funcs->[$i]
-        );
-    }
-    push @$its,mkbufreader($it,$buf) unless $#$its >= 0;    # default iterator to pull records.
-    map { $_->() } @$its;
+    my @its = map { mkwinreader(mkbufreader($it,$buf),$_) } @$funcs;
+    push @its,mkbufreader($it,$buf) unless $#its >= 0;    # default iterator to pull records.
+    map { $_->() } @its;
     while($#$buf >= 0){        
         local $_ = shift @$buf;
         shift @$_;
         print join($delim,map { defined($_) ? $_ : $nullval } @$_)."\n";        
-        map { $_->() } @$its;
+        map { $_->() } @its;
     }
 }
 
