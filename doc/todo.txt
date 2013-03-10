@@ -1,3 +1,14 @@
+data2fhead
+stable version of stddev in stream
+fix // comments in sqlrunner
+flock script
+pdist to maintain history of input
+pdist to accept generation command
+pdist to allow re-running generation command
+$ in sqlrunner input
+add oracle timestamp format to init folder
+stats script (calculate entropy per column).
+
 refactor the code.
 
 We need to include the following lines in Oracle sql scripts to ensure that it abends for any oserror or sqlerror
