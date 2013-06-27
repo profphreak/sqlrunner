@@ -35,7 +35,8 @@ if($args{help} || $args{'-help'} || $args{'--help'}){
     exit;
 }
 
-my $delim = "," unless defined $args{delim};
+my $delim = $args{delim};
+$delim = "," unless defined $delim;
 $delim = "\t" if $delim eq '\t';
 
 my @head;
@@ -58,7 +59,7 @@ my @dates = map { 0 } 1..1024;      # looks like date
 
 while(<STDIN>){
     chomp;
-    my @rec = split/$delim/;
+    my @rec = split/\Q$delim\E/;
     $cnt++;
     for(my $i=0;$i<=$#rec;$i++){
         local $_ = $rec[$i];

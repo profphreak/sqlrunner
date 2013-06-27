@@ -31,6 +31,10 @@ if($args{help} || $args{'-help'} || $args{'--help'}){
 die "db is undefined\n" unless defined($args{db});
 die "table is undefined\n" unless defined($args{table});
 
+for my $e (qw(db dbname url pass user)){
+    $ENV{$e} = $args{$e} if defined $args{$e};
+}
+
 $args{tmp}=$ENV{TMP} unless defined($args{tmp});
 $args{tmp}=$ENV{TEMP} unless defined($args{tmp});
 $args{tmp}="/tmp" unless defined($args{tmp});

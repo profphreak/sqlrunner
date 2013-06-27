@@ -238,7 +238,8 @@ public class SQLRunner {
         }else if((m = strmatch(sql,"^\\s*desc(ribe)?\\s+(\\S+)\\s*;?\\s*$")) != null){
             DatabaseMetaData databaseMetaData = connection.getMetaData();
             rs = databaseMetaData.getColumns(props.getProperty("catalog"),
-                    props.getProperty("schema"),m[2].toUpperCase(),null);
+                    props.getProperty("schema"),
+                        ( databaseMetaData.storesLowerCaseIdentifiers() ? m[2].toLowerCase() : m[2].toUpperCase()),null);
         }else if(strmatch(sql,"^\\s*info\\s*;?$") != null){
             //
             // if in console mode, display database info.
@@ -782,7 +783,7 @@ public class SQLRunner {
                     if(line.length() > 0)
                         sb += line + "\n";
                 }
-            }else if(strmatch(line,"^\\s*set\\s+") != null){
+            }else if(strmatch(line,"^\\s*set\\s+") != null && getEvalProperty("set","on").equals("on")){
                 // 
                 // handle the "set " command.
                 // this can be:  set blah glah on spool env log off
@@ -815,7 +816,7 @@ public class SQLRunner {
                 }
                 sb = "";
                 linenosql = 0;
-            }else if(strmatch(line,"^\\s*(unset|undef(ine)?)\\s+") != null){
+            }else if(strmatch(line,"^\\s*(unset|undef(ine)?)\\s+") != null && getEvalProperty("set","on").equals("on")){
                 // 
                 // handle the "unset " command.
                 // this can be:  unset blah glah on spool env log
