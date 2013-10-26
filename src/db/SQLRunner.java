@@ -280,7 +280,10 @@ public class SQLRunner {
                 if( // Postgres
                     e.getMessage().indexOf("Unable to interpret the update count in command completion tag") >= 0 ||
                     // Netezza
-                    e.getMessage().indexOf("Unable to fathom update count") >= 0 ){
+                    e.getMessage().indexOf("Unable to fathom update count") >= 0 ||
+                    // Netezza (new driver)
+                    e.getMessage().indexOf("The update count exceeded Integer") >= 0
+                    ){
                     // in PostgreSQL 9.1 JDBC4 (build 901)
                     // ...and Netezza 
                     // the driver appears to be doing:
@@ -315,6 +318,7 @@ public class SQLRunner {
                 if(getEvalProperty("console","off").equals("on")){
                     System.out.println("OK (no results)");
                 }
+                statement.close();
                 return ;
             }
             
@@ -351,6 +355,8 @@ public class SQLRunner {
             }
             System.out.println("-----------------------------------");
         }
+        if(rs != null)
+            rs.close();
     }
 
 
