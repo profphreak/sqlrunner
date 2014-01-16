@@ -37,6 +37,21 @@ while(<STDIN>){
     }else{
         my $cmd = $args{cmd};
         $cmd=~s/\$_/$_/sgi;
+
+        # add support for similar arguments as in gnu parallel
+        my ($noext) = ($_ =~ m{(.+?)(\.[^/\\.]+)?$}s);  # {.}
+        my ($basename) = ($_ =~ m{([^/\\]+)$}s);        # {/}
+        my ($a,$dirname) = ($_ =~ m{((.*)[/\\])}s);     # {//}
+        $dirname='.' unless length($dirname)>0; 
+        my ($bnoext) = ($_ =~ m{([^/\\]+?)(\.[^/\\.]+)?$}s);    # {/.}
+        $cmd=~s/\{\}/$_/sgi;
+        $cmd=~s/\{\.\}/$noext/sgi;
+        $cmd=~s/\{\/\}/$basename/sgi;
+        $cmd=~s/\{\/\/\}/$dirname/sgi;
+        $cmd=~s/\{\.\/\}/$bnoext/sgi;
+        $cmd=~s/\{#\}/$./sgi;
+        $cmd=~s/\{uuid\}/$a=`uuidgen`; $a=~s{^\s+|\s+}{}sgi;$a/sgie;
+
         #print "running [$cmd]\n";
         # change to chdir before running (if specified).
         chdir "$args{chdir}" if defined $args{chdir};
@@ -53,8 +68,8 @@ sub getMaxProcs {
         local $_ = <$in>;
         close $in;
         chomp $_;
-        return $_ if $_ >= 1 && $_ <= 64;   # sane[?] value.
-    }elsif($args{threads} =~ m/\d+/ && $args{threads} <= 64 &&  $args{threads} >= 1){
+        return $_ if $_ >= 1 && $_ <= 4096;   # sane[?] value.
+    }elsif($args{threads} =~ m/\d+/ && $args{threads} <= 4096 &&  $args{threads} >= 1){
         return int($args{threads});
     }
     return 1;
