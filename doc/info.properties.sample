@@ -1,0 +1,17 @@
+
+# these should go into ~/.sqlrunner/info.properties file.
+
+dwprod_user=alex
+dwprod_pass=s0mePa55w0rd
+dwprod_dbname=dwprod
+dwprod_driver=org.postgresql.Driver
+dwprod_host=localhost
+dwprod_url=jdbc:postgresql://&&host/&&dbname
+
+dwprod_admin_user=dwprod
+dwprod_admin_pass=s0meB3tt3rPa55w0rd
+dwprod_admin_dbname=dwprod
+dwprod_admin_driver=org.postgresql.Driver
+dwprod_admin_host=localhost
+dwprod_admin_url=jdbc:postgresql://&&host/&&dbname
+
