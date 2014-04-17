@@ -345,4 +345,12 @@ done
 
 -- load data while filtering non-printable characters.
 cat data.dat | perl -ne's/[\x7F-\xFF]//sgi; print' | dbload.pl db=gpdb table=mast delim="|"
- 
+
+
+
+-- loading .csv data into Amazon Redshift from S3
+-- (assuming you've defined redshift connection, aws_accessKey and aws_secretKey)
+
+echo "copy towhatevertable from 's3:&&sl.WHATEVERS3BUCKET' CREDENTIALS 'aws_access_key_id=&&aws_accessKey;aws_secret_access_key=&&aws_secretKey' delimiter ',' dateformat 'YYYYMMDD';"|sqlrunner db=redshift log sl="//" -
+
+

@@ -23,6 +23,17 @@ hive_port=10000
 hive_url=jdbc:hive2://&&host:&&port/&&dbname;principal=hive/&&host@securityhostname
 hive_driver=org.apache.hive.jdbc.HiveDriver
 
+redshift_user=rsUser
+redshift_pass=s0mePa55w0rd
+redshift_dbname=rsdb
+redshift_port=5439
+redshift_host=somershostname.redshift.amazonaws.com
+redshift_url=jdbc:postgresql://&&host:&&port/&&dbname
+redshift_driver=org.postgresql.Driver
+aws_accessKey=ABCDEFG
+aws_secretKey=asdfasdfasdfasdf1234
+
+
 nzprod_user=alex
 nzprod_pass=s0mePa55w0rd
 nzprod_dbname=databasename
