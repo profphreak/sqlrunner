@@ -967,6 +967,11 @@ public class SQLRunner {
                     System.out.printf("\n-- Total SQLRunner execution time: %.2f minutes.\n",(millis/1000.0)/60.0);
                 }
 
+
+                // close spool file if not stdout.
+                if(ps != null && ps != System.out)
+                    ps.close();
+
                 //
                 // exits the program.
                 //
@@ -1043,6 +1048,10 @@ public class SQLRunner {
                 }
             }
         }
+
+        // close spool file if not stdout
+        if(ps != null && ps != System.out)
+            ps.close();
     }
 
     /**
