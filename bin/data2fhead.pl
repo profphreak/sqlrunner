@@ -107,7 +107,7 @@ print join(',',map {
     }elsif($v == $tims[$_] && $tims[$_]>0){
         $t = "TIME";
     }elsif($head[$_] =~ m/price/i && $v == 0){
-        $t = "NUMBER"; $s=20; $p=20; $sc=8;
+        $t = "NUMBER"; $s=32; $p=32; $sc=8;
     }
     $t='BIGINT' if $t eq 'INT' && $s>9; 
     $t='SMALLINT' if $t eq 'INT' && $s<5; 

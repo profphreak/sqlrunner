@@ -150,7 +150,29 @@ Note: If load failed due to subseconds in timestamps, consider setting:
     $args{timestyle} = '24hour' unless defined $args{timestyle};    # 12hour ?
     $args{timedelim} = ':' unless defined $args{timedelim};
 
-    my $cmd=qq{psql -c"\\copy $args{table} from STDIN with delimiter '$args{delim}' null as '' FILL MISSING FIELDS"};
+    my $error_stuff = "";
+    if(defined($args{error_table}) && defined($args{error_num})){
+        #print "processing error table $args{error_table} upto $args{error_num} rows\n";
+        
+        `echo "drop table $args{error_table};"|sqlrunner db=$args{db} - 2>/dev/null`;
+        `echo "CREATE TABLE $args{error_table} (cmdtime timestamp with time zone, relname text, filename text, linenum integer, bytenum integer, errmsg text, rawdata text, rawbytes bytea) distributed randomly;"|sqlrunner db=$args{db} - 2>/dev/null`;
+        $error_stuff = " LOG ERRORS INTO $args{error_table} SEGMENT REJECT LIMIT $args{error_num} ROWS";
+    }
+
+    my $null_stuff = "";
+    if(defined($args{nullas})){
+        $null_stuff = "NULL AS '$args{nullas}'";
+    }else{
+        $null_stuff = "NULL AS ''";
+    }
+
+    if(length($args{delim}) > 1){
+        $args{delim} = "$args{delim}";
+    }else{
+        $args{delim} = "'$args{delim}'";
+    }
+ 
+    my $cmd=qq{psql -c"\\copy $args{table} from STDIN with delimiter $args{delim} $null_stuff FILL MISSING FIELDS $error_stuff"};
     
     `$cmd`;
 
@@ -187,7 +209,16 @@ set environment variable: PGCLIENTENCODING=LATIN1
     $args{timestyle} = '24hour' unless defined $args{timestyle};    # 12hour ?
     $args{timedelim} = ':' unless defined $args{timedelim};
 
-    my $cmd=qq{psql -c"\\copy $args{table} from STDIN with delimiter '$args{delim}' null as '' "};
+    my $error_stuff = "";
+    if(defined($args{error_table}) && defined($args{error_num})){
+        print "processing error table $args{error_table} upto $args{error_num} rows";
+        
+        `echo "drop table $args{error_table};"|sqlrunner db=$args{db} - 2>/dev/null`;
+        `echo "CREATE TABLE $args{error_table} (cmdtime timestamp with time zone, relname text, filename text, linenum integer, bytenum integer, errmsg text, rawdata text, rawbytes bytea) distributed randomly;"|sqlrunner db=$args{db} - 2>/dev/null`;
+        $error_stuff = " LOG ERRORS INTO $args{error_table} SEGMENT REJECT LIMIT $args{error_num} ROWS";
+    }
+
+    my $cmd=qq{psql -c"\\copy $args{table} from STDIN with delimiter '$args{delim}' null as '' $error_stuff"};
     
     `$cmd`;
 
