@@ -27,7 +27,7 @@ import java.util.zip.*;
  * Java utility to run SQL, dump data to CSV, etc.
  *
  * @author Alex Sverdlov
- * @version 1.0.17
+ * @version 1.0.18
  */
 public class SQLRunner {
 
@@ -121,7 +121,7 @@ public class SQLRunner {
     /**
      * Run sql query
      */
-    public static void sqlRun(String sql,PrintStream ps) throws Exception {
+    public static void sqlRun(String sql,final PrintStream ps) throws Exception {
         long qtim = 0,otim = 0;
 
         setProperty("_current_connection_laststmnt_raw",sql.trim());
@@ -270,11 +270,50 @@ public class SQLRunner {
             // 
             // execute statement
             //
-            Statement statement = connection.createStatement();
+            final Statement statement = connection.createStatement();
             statement.setFetchSize(1024*16);   // random large number.
+            // statement.closeOnCompletion();   jdk 1.7 feature
+
+            // attempt to setup timeout
+            try {
+                statement.setQueryTimeout(Integer.parseInt(getEvalProperty("timeout","0")));
+            }catch(java.sql.SQLFeatureNotSupportedException e){ 
+                if(getEvalProperty("log","off").equals("on")){
+                    System.out.println("-- Timeout feature not supported by database driver.");
+                }
+            }
+
+            Thread shutdownhook = new Thread() {
+                @Override
+                public void run() {                    
+                    try { 
+                        if(getEvalProperty("log","off").equals("on"))
+                            System.out.println("-- canceling statement");
+                        statement.cancel(); 
+                    } catch (SQLException e){ 
+                        if(getEvalProperty("log","off").equals("on"))
+                            System.out.println(e.getMessage());
+                    }
+                    try { 
+                        if(getEvalProperty("log","off").equals("on"))
+                            System.out.println("-- closing statement");
+                        statement.close(); 
+                    } catch (SQLException e){ 
+                        if(getEvalProperty("log","off").equals("on"))
+                            System.out.println(e.getMessage());                    
+                    }
+                    // close spool file if not stdout
+                    if(ps != null && ps != System.out)
+                        ps.close();                    
+                }
+            };
+
+
             boolean rsout = false; 
 
             try {
+                // cleanup if killed.
+                Runtime.getRuntime().addShutdownHook(shutdownhook);            
                 rsout = statement.execute(sql);
             } catch(java.lang.Exception e){
                 if( // Postgres
@@ -295,6 +334,9 @@ public class SQLRunner {
                 }else{
                     throw e;
                 }
+            }finally{
+                // no need to cleanup now :-)
+                Runtime.getRuntime().removeShutdownHook(shutdownhook);
             }
 
             otim = System.currentTimeMillis();
@@ -328,16 +370,9 @@ public class SQLRunner {
             rs = statement.getResultSet();
         }
 
-        //
-        // determine output format
-        //
-        if(getEvalProperty("outformat","delim").equals("delim")){
-            if(rs != null)
-                resultSetOutputDelim(rs,ps);
-        }else{
-            // else ?
-        }
-
+        
+        if(rs != null)
+            resultSetOutput(rs,ps);
 
         long etim = System.currentTimeMillis();
         
@@ -373,7 +408,7 @@ public class SQLRunner {
     /**
      * output data to a CSV file
      */
-    public static void resultSetOutputDelim(ResultSet rs,PrintStream ps) throws Exception {
+    public static void resultSetOutput(ResultSet rs,PrintStream ps) throws Exception {
 
         // 
         // setup record delimiter for output
@@ -420,12 +455,14 @@ public class SQLRunner {
         int[] colPres = new int[cols+1];    // precision
         int[] colScal = new int[cols+1];    // scale 
         int[] colNul = new int[cols+1];     // is null
+        int[] colCalcSize = new int[cols+1];    // calculate column length
 
         // 
         // populate metadata arrays (for output).
         //    NOW~TIMESTAMP~26~26~6~1
         for(int i=1;i<=cols;i++){
             colName[i] = meta.getColumnName(i).toUpperCase();
+            colCalcSize[i] = colName[i].length();
             colTypeName[i] = meta.getColumnTypeName(i).toUpperCase();
             colTypeNameOrig[i] = meta.getColumnTypeName(i).toUpperCase();
             colSiz[i] = Math.max(meta.getColumnDisplaySize(i),0);
@@ -515,8 +552,6 @@ public class SQLRunner {
         char delimChar = delim.charAt(0);
         char delimReplace = getEvalProperty("delimReplace"," ").charAt(0);
 
-
-
         Format[] formats = new Format[cols+1];
         for(int i=1;i<=cols;i++){
             if(System.getProperty(colName[i]+"_format") != null){
@@ -532,45 +567,141 @@ public class SQLRunner {
 
         String nullval = getEvalProperty("nullval","");
 
-        while(rs.next()){
-            outcnt++;
-            for(int i=1;i<=cols;i++){
-                if(colIsDate[i]){        // if date, then format as YYYYMMDD
-                    // java.sql.Date d = rs.getDate(i);
-                    java.sql.Timestamp d = rs.getTimestamp(i);
-                    if(!rs.wasNull())
-                        sb.append(formats[i].format(d));
-                    else sb.append(nullval);
-                } else if(colIsTimestamp[i]){        // if date, then format as YYYYMMDDHHMMSS.SSS
-                    java.sql.Timestamp d = rs.getTimestamp(i);
-                    if(!rs.wasNull())
-                        sb.append(formats[i].format(d));
-                    else sb.append(nullval);                        
-                } else if(colIsTime[i]){                // time column.
-                    java.sql.Time d = rs.getTime(i);
-                    if(!rs.wasNull())
-                        sb.append(formats[i].format(d));
-                    else sb.append(nullval);                        
-                } else if(colIsDouble[i]) {             // if number has decimal point.
-                    double d = rs.getDouble(i);
-                    if(!rs.wasNull())
-                        sb.append(nf.format(d));
-                    else sb.append(nullval);                        
-                } else {                        // treat everything else as string.
-                    String s = rs.getString(i);
-                    if(!rs.wasNull())
-                        //sb.append(s);
-                        sb.append(s.replace(delimChar,delimReplace).trim());    // trim output strings.
-                    else sb.append(nullval);                        
+        //
+        // determine output format
+        //
+        if(getEvalProperty("outformat","delim").equals("delim")){
+
+            while(rs.next()){
+                outcnt++;
+                for(int i=1;i<=cols;i++){
+                    if(colIsDate[i]){        // if date, then format as YYYYMMDD
+                        // java.sql.Date d = rs.getDate(i);
+                        java.sql.Timestamp d = rs.getTimestamp(i);
+                        if(!rs.wasNull())
+                            sb.append(formats[i].format(d));
+                        else sb.append(nullval);
+                    } else if(colIsTimestamp[i]){        // if date, then format as YYYYMMDDHHMMSS.SSS
+                        java.sql.Timestamp d = rs.getTimestamp(i);
+                        if(!rs.wasNull())
+                            sb.append(formats[i].format(d));
+                        else sb.append(nullval);                        
+                    } else if(colIsTime[i]){                // time column.
+                        java.sql.Time d = rs.getTime(i);
+                        if(!rs.wasNull())
+                            sb.append(formats[i].format(d));
+                        else sb.append(nullval);                        
+                    } else if(colIsDouble[i]) {             // if number has decimal point.
+                        double d = rs.getDouble(i);
+                        if(!rs.wasNull())
+                            sb.append(nf.format(d));
+                        else sb.append(nullval);                        
+                    } else {                        // treat everything else as string.
+                        String s = rs.getString(i);
+                        if(!rs.wasNull())
+                            //sb.append(s);
+                            sb.append(s.replace(delimChar,delimReplace).trim());    // trim output strings.
+                        else sb.append(nullval);                        
+                    }
+                    sb.append(delim);
                 }
-                sb.append(delim);
+                sb.setLength(sb.length()-delim.length());   // add new line.
+                outstr = sb.toString();
+                if(ps != null)
+                    ps.print(outstr + linesep);                       // output
+                sb.setLength(0);                    // reset buffer.
             }
-            sb.setLength(sb.length()-delim.length());   // add new line.
-            outstr = sb.toString();
-            if(ps != null)
-                ps.print(outstr + linesep);                       // output
-            sb.setLength(0);                    // reset buffer.
-        }
+        } else if ( getEvalProperty("outformat","delim").equals("text") ){
+
+            java.util.Vector dataList = new java.util.Vector();            
+            String[] spaces = new String[1024];
+            spaces[0] = "";
+            for(int i=1;i<spaces.length;i++){
+                spaces[i] = spaces[i-1] + " ";
+            }
+            dataList.addElement(colName);
+
+            while(rs.next()){
+                outcnt++;
+                String[] dataRecord = new String[cols+1];
+                for(int i=1;i<=cols;i++){
+                    if(colIsDate[i]){        // if date, then format as YYYYMMDD
+                        // java.sql.Date d = rs.getDate(i);
+                        java.sql.Timestamp d = rs.getTimestamp(i);
+                        if(!rs.wasNull())
+                            dataRecord[i] = formats[i].format(d);
+                        else dataRecord[i] = nullval;
+                    } else if(colIsTimestamp[i]){        // if date, then format as YYYYMMDDHHMMSS.SSS
+                        java.sql.Timestamp d = rs.getTimestamp(i);
+                        if(!rs.wasNull())
+                            dataRecord[i] = formats[i].format(d);
+                        else dataRecord[i] = nullval;                        
+                    } else if(colIsTime[i]){                // time column.
+                        java.sql.Time d = rs.getTime(i);
+                        if(!rs.wasNull())
+                            dataRecord[i] = formats[i].format(d);
+                        else dataRecord[i] = nullval;
+                    } else if(colIsDouble[i]) {             // if number has decimal point.
+                        double d = rs.getDouble(i);
+                        if(!rs.wasNull())
+                            dataRecord[i] = nf.format(d);
+                        else dataRecord[i] = nullval;
+                    } else {                        // treat everything else as string.
+                        String s = rs.getString(i);
+                        if(!rs.wasNull())
+                            dataRecord[i] = s;
+                        else dataRecord[i] = nullval;
+                    }
+                    if(colCalcSize[i] < dataRecord[i].length() )
+                        colCalcSize[i]=dataRecord[i].length();
+                }
+                dataList.addElement(dataRecord);
+                if(dataList.size() > 1024*16){
+                    java.util.Enumeration en = dataList.elements();
+                    while(en.hasMoreElements()){
+                        String[] r = (String[])en.nextElement();
+                        for(int i=1;i<=cols;i++){
+                            int d = colCalcSize[i] - r[i].length();
+                            if(colIsDouble[i] || colSiz[i]==0){
+                                sb.append(spaces[d] + r[i]);
+                            }else{
+                                sb.append(r[i] + spaces[d]);
+                            }
+                            sb.append(" ");
+                        }
+                        sb.setLength(sb.length()-1);   // add new line.
+                        outstr = sb.toString();
+                        if(ps != null)
+                            ps.print(outstr + linesep);                       // output
+                        sb.setLength(0);                    // reset buffer.
+                    }
+                    dataList.clear();
+                }                
+            }
+
+                    java.util.Enumeration en = dataList.elements();
+                    while(en.hasMoreElements()){
+                        String[] r = (String[])en.nextElement();
+                        for(int i=1;i<=cols;i++){
+                            int d = colCalcSize[i] - r[i].length();
+                            if(colIsDouble[i] || colSiz[i]==0){
+                                sb.append(spaces[d] + r[i]);
+                            }else{
+                                sb.append(r[i] + spaces[d]);
+                            }
+                            sb.append(" ");
+                        }
+                        sb.setLength(sb.length()-1);   // add new line.
+                        outstr = sb.toString();
+                        if(ps != null)
+                            ps.print(outstr + linesep);                       // output
+                        sb.setLength(0);                    // reset buffer.
+                    }
+                    dataList.clear();
+
+        } else {
+            // ???
+        } 
 
         //
         // save the last result.
