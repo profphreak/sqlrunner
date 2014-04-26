@@ -83,7 +83,7 @@ public class SQLRunner {
         int i = s.length() - 1;
         if(i < 0)
             return "";
-        while(i >= 0 && Character.isSpace(s.charAt(i)))
+        while(i >= 0 && Character.isWhitespace(s.charAt(i)))
             i--;
         return s.substring(0,i+1);
     }
@@ -99,8 +99,8 @@ public class SQLRunner {
         String[] ptrn = {
             "<\\?=\\s*\\$?(\\w+)\\s*\\?>",      // <?=$somevariable?> 
             "\\\\?\\&\\&?(\\w+)\\.?",           // &&tdate, &tdate, \&tdate
-            "\\$\\{\\s*(\\w+)\\s*\\}\\.?",      // ${variable} 
-            "\\$(\\w+)\\.?"                     // $variable 
+            "\\$\\{\\s*(\\w+)\\s*\\}\\.?"      // ${variable} 
+            // "\\$(\\w+)\\.?"                     // $variable 
         };
         for(String p : ptrn){
             sb.setLength(0);
@@ -514,26 +514,6 @@ public class SQLRunner {
 
         String outstr = "";
         
-        // 
-        // do we display header (or full header) ?
-        //  full header includes type, size, precision, scale, null 
-        //  (ie: enough info to recreate table in another db).
-        //
-        if(getEvalProperty("head","off").equals("on") || getEvalProperty("fhead","off").equals("on")){
-            StringBuffer b = new StringBuffer();
-            boolean fullheader = getEvalProperty("fhead","off").equals("on");
-            for(int i=1;i<=cols;i++){
-                b.append(colName[i]);
-                if(fullheader)
-                    b.append('~'+colTypeName[i]+'~'+colSiz[i]+'~'+colPres[i]+'~'+colScal[i]+'~'+colNul[i]+'~'+colTypeNameOrig[i]);
-                b.append(delim);
-            }
-            b.setLength(b.length()-delim.length());
-            outstr = b.toString();
-            if(ps != null)
-                ps.print(outstr + linesep);
-            setProperty("_current_connection_laststmnt_header",outstr);
-        }
 
 
         // 
@@ -571,6 +551,28 @@ public class SQLRunner {
         // determine output format
         //
         if(getEvalProperty("outformat","delim").equals("delim")){
+
+
+            // 
+            // do we display header (or full header) ?
+            //  full header includes type, size, precision, scale, null 
+            //  (ie: enough info to recreate table in another db).
+            //
+            if(getEvalProperty("head","off").equals("on") || getEvalProperty("fhead","off").equals("on")){
+                StringBuffer b = new StringBuffer();
+                boolean fullheader = getEvalProperty("fhead","off").equals("on");
+                for(int i=1;i<=cols;i++){
+                    b.append(colName[i]);
+                    if(fullheader)
+                        b.append('~'+colTypeName[i]+'~'+colSiz[i]+'~'+colPres[i]+'~'+colScal[i]+'~'+colNul[i]+'~'+colTypeNameOrig[i]);
+                    b.append(delim);
+                }
+                b.setLength(b.length()-delim.length());
+                outstr = b.toString();
+                if(ps != null)
+                    ps.print(outstr + linesep);
+                setProperty("_current_connection_laststmnt_header",outstr);
+            }
 
             while(rs.next()){
                 outcnt++;
@@ -613,13 +615,21 @@ public class SQLRunner {
             }
         } else if ( getEvalProperty("outformat","delim").equals("text") ){
 
-            java.util.Vector dataList = new java.util.Vector();            
+            java.util.Vector<String[]> dataList = new java.util.Vector<String[]>();
             String[] spaces = new String[1024];
             spaces[0] = "";
             for(int i=1;i<spaces.length;i++){
                 spaces[i] = spaces[i-1] + " ";
             }
-            dataList.addElement(colName);
+
+
+
+            // 
+            // do we display header?
+            //
+            if(getEvalProperty("head","off").equals("on")){
+                dataList.addElement(colName);
+            }
 
             while(rs.next()){
                 outcnt++;
@@ -656,10 +666,10 @@ public class SQLRunner {
                         colCalcSize[i]=dataRecord[i].length();
                 }
                 dataList.addElement(dataRecord);
-                if(dataList.size() > 1024*16){
-                    java.util.Enumeration en = dataList.elements();
+                if(dataList.size() > 2048){
+                    java.util.Enumeration<String[]> en = dataList.elements();
                     while(en.hasMoreElements()){
-                        String[] r = (String[])en.nextElement();
+                        String[] r = en.nextElement();
                         for(int i=1;i<=cols;i++){
                             int d = colCalcSize[i] - r[i].length();
                             if(colIsDouble[i] || colSiz[i]==0){
@@ -679,9 +689,9 @@ public class SQLRunner {
                 }                
             }
 
-                    java.util.Enumeration en = dataList.elements();
+                    java.util.Enumeration<String[]> en = dataList.elements();
                     while(en.hasMoreElements()){
-                        String[] r = (String[])en.nextElement();
+                        String[] r = en.nextElement();
                         for(int i=1;i<=cols;i++){
                             int d = colCalcSize[i] - r[i].length();
                             if(colIsDouble[i] || colSiz[i]==0){
@@ -776,13 +786,49 @@ public class SQLRunner {
             line = in.readLine();
             line = rtrim(line);
 
-
             // 
             // if EOF, exit.
             //
             if(line == null)
                 break;
-            
+
+
+            {
+                // better handling of quotes, etc.
+                StreamTokenizer st = new StreamTokenizer(new StringReader(line));                
+                line = "";
+                st.resetSyntax();
+                st.ordinaryChars(0x0001,0xFFFF);                
+                st.wordChars('0','9');
+                st.wordChars('A','Z');
+                st.wordChars('a','z');
+                st.wordChars('_','_');
+                st.slashSlashComments(true);
+                st.slashStarComments(true); 
+                st.commentChar('#');
+                st.quoteChar('\'');
+                st.quoteChar('\"');
+                while(st.nextToken() != java.io.StreamTokenizer.TT_EOF){
+                    if(st.ttype == '-'){
+                        if(st.nextToken() != '-'){
+                            st.pushBack();
+                        }else{
+                            break;
+                        }
+                    }
+                    if(st.ttype == java.io.StreamTokenizer.TT_WORD){
+                        line += st.sval ;
+                    }else if (st.ttype == java.io.StreamTokenizer.TT_NUMBER){
+                        line += ""+st.nval;     // this should never happen.
+                    }else if (st.ttype == '"'){
+                        line += '"' + st.sval + '"';
+                    }else if (st.ttype == '\''){
+                        line += "'" + st.sval + "'";
+                    }else{
+                        line += (char)st.ttype;
+                    }
+                }
+            }
 
             // size of line (is there anything there?)
             linsize = line.length();
@@ -811,7 +857,7 @@ public class SQLRunner {
             // 
             // remove all /* ... */ comments; these span 1 line (multilines are handled separately).
             //
-            line = Pattern.compile("/\\*.*?\\*/",Pattern.DOTALL).matcher(line).replaceAll(" ");
+            //line = Pattern.compile("/\\*.*?\\*/",Pattern.DOTALL).matcher(line).replaceAll(" ");
 
             //
             // if line is starting a multiline comment.
@@ -842,7 +888,7 @@ public class SQLRunner {
             //
             // remove the --, #, and // comments.
             //
-            line = Pattern.compile("(--|#|//).*").matcher(line).replaceAll("");
+            //line = Pattern.compile("(--|#|//).*").matcher(line).replaceAll("");
             
             line = rtrim(line);
 
