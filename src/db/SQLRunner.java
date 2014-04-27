@@ -794,6 +794,60 @@ public class SQLRunner {
 
 
             {
+                // clumsy finite automata; need to properly handle quotes 
+                // (and potential escape characters within quotes).
+                StringBuffer s = new StringBuffer();
+                String state = "s";
+                
+                String[] fa_states = {
+                    "s:'", "q::1", // go into quote
+                    "q:'", "s::1", // go out of quote
+                    "q:\\", "sq::1",    // escape next char in quote
+                    "sq:", "q::1",      // pass on escaped char
+                    "q:",   "q::1",
+
+                    "s:\"", "qq::1", // go into dquote
+                    "qq:\"", "s::1", // go out of dquote
+                    "qq:\\", "sqq::1",    // escape next char in dquote
+                    "sqq:", "qq::1",      // pass on escaped char
+                    "qq:",  "qq::1",
+
+                    "s:/", "sl::0",
+                    "sl:/", "sl2::0",    // double slash comment
+                    "sl:",  "s:/:1",    // not a comment.
+
+                    "s:-", "sd::0",
+                    "sd:-", "sd2::0",    // double dash comment
+                    "sd:",  "s:-:1",    // not a comment.
+
+                    "s:#", "sc::0",      // comments
+
+                    "s:",   "s::1"     // pass on everything else
+                };
+                // create map
+                TreeMap<String,String> st = new TreeMap<String,String>();
+                for(int i=0;i<fa_states.length;i+=2){
+                    st.put(fa_states[i],fa_states[i+1]);
+                }
+                // finite automata driver
+                for(int i=0;i<line.length();i++){
+                    char ch = line.charAt(i);
+                    String next = st.get(state+':'+ch);
+                    if(next == null)
+                        next = st.get(state+':');
+                    if(next != null){
+                        String[] nextc = next.split(":");
+                        state = nextc[0];
+                        s.append(nextc[1]);
+                        if(nextc[2].equals("1")) s.append(ch);
+                    }
+                }
+                line = s.toString();
+
+                /*
+                removed; steamtokenizer eats escape characters; for example, 
+                   '\'//\"' should pass on as '\'//\"' not result in ''"' 
+
                 // better handling of quotes, etc.
                 StreamTokenizer st = new StreamTokenizer(new StringReader(line));                
                 line = "";
@@ -828,6 +882,7 @@ public class SQLRunner {
                         line += (char)st.ttype;
                     }
                 }
+                */
             }
 
             // size of line (is there anything there?)
@@ -857,7 +912,7 @@ public class SQLRunner {
             // 
             // remove all /* ... */ comments; these span 1 line (multilines are handled separately).
             //
-            //line = Pattern.compile("/\\*.*?\\*/",Pattern.DOTALL).matcher(line).replaceAll(" ");
+            line = Pattern.compile("/\\*.*?\\*/",Pattern.DOTALL).matcher(line).replaceAll(" ");
 
             //
             // if line is starting a multiline comment.
@@ -866,7 +921,6 @@ public class SQLRunner {
                 line = line.substring(0,line.indexOf("/*"));
                 incomment = true;
             }
-
 
             // add support for "fake" sqlrunner syntax :-)
             if( getEvalProperty("nysesqlrunner","off").equals("on") ){
