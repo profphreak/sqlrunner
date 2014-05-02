@@ -792,6 +792,27 @@ public class SQLRunner {
             if(line == null)
                 break;
 
+            //
+            // if we are in a multiline comment.
+            //
+            if(incomment){
+                //
+                // is comment ending on this line?
+                // 
+                if(line.indexOf("*/") >= 0){
+                    // 
+                    // cut away the comment. get out of a multiline comment.
+                    //
+                    line = line.substring( line.indexOf("*/") + 2);
+                    incomment = false;
+                }else{
+                    //
+                    // ignore line; we're in a multi-line comment.
+                    //
+                    continue;
+                }
+            }
+
 
             {
                 // clumsy finite automata; need to properly handle quotes 
@@ -815,6 +836,11 @@ public class SQLRunner {
                     "s:/", "sl::0",
                     "sl:/", "sl2::0",    // double slash comment
                     "sl:",  "s:/:1",    // not a comment.
+
+                    "sl:*", "sls::0",    // slash star comment
+                    "sls:*", "sls2::0",    // end slash star comment
+                    "sls2:", "sls::0",    
+                    "sls2:/", "s::0",       // end slash star comment
 
                     "s:-", "sd::0",
                     "sd:-", "sd2::0",    // double dash comment
@@ -843,84 +869,14 @@ public class SQLRunner {
                     }
                 }
                 line = s.toString();
-
-                /*
-                removed; steamtokenizer eats escape characters; for example, 
-                   '\'//\"' should pass on as '\'//\"' not result in ''"' 
-
-                // better handling of quotes, etc.
-                StreamTokenizer st = new StreamTokenizer(new StringReader(line));                
-                line = "";
-                st.resetSyntax();
-                st.ordinaryChars(0x0001,0xFFFF);                
-                st.wordChars('0','9');
-                st.wordChars('A','Z');
-                st.wordChars('a','z');
-                st.wordChars('_','_');
-                st.slashSlashComments(true);
-                st.slashStarComments(true); 
-                st.commentChar('#');
-                st.quoteChar('\'');
-                st.quoteChar('\"');
-                while(st.nextToken() != java.io.StreamTokenizer.TT_EOF){
-                    if(st.ttype == '-'){
-                        if(st.nextToken() != '-'){
-                            st.pushBack();
-                        }else{
-                            break;
-                        }
-                    }
-                    if(st.ttype == java.io.StreamTokenizer.TT_WORD){
-                        line += st.sval ;
-                    }else if (st.ttype == java.io.StreamTokenizer.TT_NUMBER){
-                        line += ""+st.nval;     // this should never happen.
-                    }else if (st.ttype == '"'){
-                        line += '"' + st.sval + '"';
-                    }else if (st.ttype == '\''){
-                        line += "'" + st.sval + "'";
-                    }else{
-                        line += (char)st.ttype;
-                    }
+                if(state.equals("sls") || state.equals("sls2")){
+                    incomment = true;
                 }
-                */
+
             }
 
             // size of line (is there anything there?)
             linsize = line.length();
-
-            //
-            // if we are in a multiline comment.
-            //
-            if(incomment){
-                //
-                // is comment ending on this line?
-                // 
-                if(line.indexOf("*/") >= 0){
-                    // 
-                    // cut away the comment. get out of a multiline comment.
-                    //
-                    line = line.substring( line.indexOf("*/") + 2);
-                    incomment = false;
-                }else{
-                    //
-                    // ignore line; we're in a multi-line comment.
-                    //
-                    continue;
-                }
-            }
-
-            // 
-            // remove all /* ... */ comments; these span 1 line (multilines are handled separately).
-            //
-            line = Pattern.compile("/\\*.*?\\*/",Pattern.DOTALL).matcher(line).replaceAll(" ");
-
-            //
-            // if line is starting a multiline comment.
-            //
-            if(line.indexOf("/*") >= 0){
-                line = line.substring(0,line.indexOf("/*"));
-                incomment = true;
-            }
 
             // add support for "fake" sqlrunner syntax :-)
             if( getEvalProperty("nysesqlrunner","off").equals("on") ){
@@ -934,15 +890,7 @@ public class SQLRunner {
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(line).replaceAll("set errors off;");
                 line = Pattern.compile("--@@\\s*ignore_sql_error\\s*=\\s*off\\s*;",
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(line).replaceAll("set errors on;");
-                //if(!line.equals(orig_line) && getEvalProperty("log","off").equals("on") ){
-                //    System.out.println("\nreplaced: "+orig_line+ " with "+line);
-                //}
             }
-
-            //
-            // remove the --, #, and // comments.
-            //
-            //line = Pattern.compile("(--|#|//).*").matcher(line).replaceAll("");
             
             line = rtrim(line);
 
