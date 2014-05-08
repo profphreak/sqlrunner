@@ -689,25 +689,100 @@ public class SQLRunner {
                 }                
             }
 
-                    java.util.Enumeration<String[]> en = dataList.elements();
-                    while(en.hasMoreElements()){
-                        String[] r = en.nextElement();
-                        for(int i=1;i<=cols;i++){
-                            int d = colCalcSize[i] - r[i].length();
-                            if(colIsDouble[i] || colSiz[i]==0){
-                                sb.append(spaces[d] + r[i]);
-                            }else{
-                                sb.append(r[i] + spaces[d]);
-                            }
-                            sb.append(" ");
-                        }
-                        sb.setLength(sb.length()-1);   // add new line.
-                        outstr = sb.toString();
-                        if(ps != null)
-                            ps.print(outstr + linesep);                       // output
-                        sb.setLength(0);                    // reset buffer.
+            java.util.Enumeration<String[]> en = dataList.elements();
+            while(en.hasMoreElements()){
+                String[] r = en.nextElement();
+                for(int i=1;i<=cols;i++){
+                    int d = colCalcSize[i] - r[i].length();
+                    if(colIsDouble[i] || colSiz[i]==0){
+                        sb.append(spaces[d] + r[i]);
+                    }else{
+                        sb.append(r[i] + spaces[d]);
                     }
-                    dataList.clear();
+                    sb.append(" ");
+                }
+                sb.setLength(sb.length()-1);   // add new line.
+                outstr = sb.toString();
+                if(ps != null)
+                    ps.print(outstr + linesep);                       // output
+                sb.setLength(0);                    // reset buffer.
+            }
+            dataList.clear();
+
+        }else if(getEvalProperty("outformat","delim").equals("html")){
+
+
+            String styleRightAlign = " class=\"sqlrunner_numeric\"";
+            if(getEvalProperty("outstyle","none").equals("pretty")){
+                ps.print("<style>\n");
+                ps.print(".sqlrunner_resultset, .sqlrunner_resultset th, .sqlrunner_resultset td {text-align:left;}\n");
+                ps.print(".sqlrunner_numeric {text-align:right;}\n");
+                ps.print(".sqlrunner_resultset {border-collapse:collapse;}\n");
+                ps.print(".sqlrunner_resultset, .sqlrunner_resultset th, .sqlrunner_resultset td {border: 1px solid black;}\n");
+                ps.print("</style>\n");
+                ps.print("<table class=\"sqlrunner_resultset\">\n");
+            }else{
+                styleRightAlign = "";
+                ps.print("<table>\n");
+            }
+
+            // 
+            // do we display header?
+            //
+            if(getEvalProperty("head","off").equals("on")){
+                ps.print("<tr>");
+                for(int i=1;i<colName.length;i++){
+                    if(colIsDouble[i] || colSiz[i]==0){
+                        ps.print("<th"+styleRightAlign+">"+colName[i]+"</th>");
+                    }else{
+                        ps.print("<th>"+colName[i]+"</th>");
+                    }
+                }
+                ps.print("</tr>\n");
+            }
+
+            while(rs.next()){
+                outcnt++;
+                ps.print("<tr>");                
+                for(int i=1;i<=cols;i++){
+                    if(colIsDate[i]){        // if date, then format as YYYYMMDD
+                        // java.sql.Date d = rs.getDate(i);
+                        java.sql.Timestamp d = rs.getTimestamp(i);
+                        if(!rs.wasNull())
+                            ps.print("<td>"+formats[i].format(d)+"</td>");
+                        else ps.print("<td></td>");
+                    } else if(colIsTimestamp[i]){        // if date, then format as YYYYMMDDHHMMSS.SSS
+                        java.sql.Timestamp d = rs.getTimestamp(i);
+                        if(!rs.wasNull())
+                            ps.print("<td>"+formats[i].format(d)+"</td>");
+                        else ps.print("<td></td>");                        
+                    } else if(colIsTime[i]){                // time column.
+                        java.sql.Time d = rs.getTime(i);
+                        if(!rs.wasNull())
+                            ps.print("<td>"+formats[i].format(d)+"</td>");
+                        else ps.print("<td></td>");                        
+                    } else if(colIsDouble[i]) {             // if number has decimal point.
+                        double d = rs.getDouble(i);
+                        if(!rs.wasNull())
+                            ps.print("<td"+styleRightAlign+">"+nf.format(d)+"</td>");
+                        else ps.print("<td></td>");                        
+                    } else {                        // treat everything else as string.
+                        String s = rs.getString(i);
+                        if(!rs.wasNull()){
+                            if(colSiz[i]==0){
+                                ps.print("<td"+styleRightAlign+">"+s.replace(delimChar,delimReplace).trim()+"</td>");    // trim output strings.
+                            }else{
+                                ps.print("<td>"+s.replace(delimChar,delimReplace).trim()+"</td>");    // trim output strings.
+                            }
+                        }
+                        else ps.print("<td></td>");
+                    }
+                }
+                ps.print("</tr>\n");
+            }
+
+            ps.print("</table>\n");            
+
 
         } else {
             // ???
@@ -876,8 +951,6 @@ public class SQLRunner {
                         s.append(nextc[1]);
                     }
                 }
-
-                
 
                 line = s.toString();
                 if(state.equals("sls") || state.equals("sls2")){
