@@ -868,6 +868,17 @@ public class SQLRunner {
                         if(nextc[2].equals("1")) s.append(ch);
                     }
                 }
+                {
+                    String next = st.get(state+':');
+                    if(next != null){
+                        String[] nextc = next.split(":");
+                        state = nextc[0];
+                        s.append(nextc[1]);
+                    }
+                }
+
+                
+
                 line = s.toString();
                 if(state.equals("sls") || state.equals("sls2")){
                     incomment = true;
