@@ -246,32 +246,32 @@ public class SQLRunner {
             //
             if(ps != null){ 
                 DatabaseMetaData databaseMetaData = connection.getMetaData();
-                ps.println("Driver: "+databaseMetaData.getDriverName());
-                ps.println("Driver Version: "+databaseMetaData.getDriverVersion());
-                ps.println("JDBC Version: "+databaseMetaData.getJDBCMajorVersion()+"."+
-                    databaseMetaData.getJDBCMinorVersion());
-                ps.println("Database: "+databaseMetaData.getDatabaseProductName());
-                ps.println("Database Version: "+databaseMetaData.getDatabaseProductVersion());
-                ps.println("URL: "+databaseMetaData.getURL());
-                ps.println("User: "+databaseMetaData.getUserName());
-                ps.println("SQLRunner Version: "+props.getProperty("version"));
+                try { ps.println("Driver: "+databaseMetaData.getDriverName()); }catch(Exception e){}
+                try { ps.println("Driver Version: "+databaseMetaData.getDriverVersion()); }catch(Exception e){}
+                try { ps.println("JDBC Version: "+databaseMetaData.getJDBCMajorVersion()+"."+
+                    databaseMetaData.getJDBCMinorVersion()); }catch(Exception e){}
+                try { ps.println("Database: "+databaseMetaData.getDatabaseProductName()); }catch(Exception e){}
+                try { ps.println("Database Version: "+databaseMetaData.getDatabaseProductVersion()); }catch(Exception e){}
+                try { ps.println("URL: "+databaseMetaData.getURL()); }catch(Exception e){}
+                try { ps.println("User: "+databaseMetaData.getUserName()); }catch(Exception e){}
+                try { ps.println("SQLRunner Version: "+props.getProperty("version")); }catch(Exception e){}
             }
         }else{
             // user is doing a db query. 
 
             // for select statements, set autocommit to off.
             if(strmatch(sql,"^\\s*select") != null){
-                connection.setAutoCommit(false);
+                try{ connection.setAutoCommit(false); }catch(Exception e){}
             }else{
                 // for non-select statements, set autocommit to variable name, defaulting to "on".
-                connection.setAutoCommit( getEvalProperty("autocommit","on").equals("on") );
+                try{ connection.setAutoCommit( getEvalProperty("autocommit","on").equals("on") ); }catch(Exception e){}
             }
 
             // 
             // execute statement
             //
             final Statement statement = connection.createStatement();
-            statement.setFetchSize(1024*16);   // random large number.
+            try { statement.setFetchSize(1024*16);  }catch(Exception e){}  // random large number.
             // statement.closeOnCompletion();   jdk 1.7 feature
 
             // attempt to setup timeout
@@ -281,7 +281,15 @@ public class SQLRunner {
                 if(getEvalProperty("log","off").equals("on")){
                     System.out.println("-- Timeout feature not supported by database driver.");
                 }
+            }catch(Exception e){
+                if(getEvalProperty("log","off").equals("on")){
+                    System.out.println("-- Timeout feature not supported by database driver.");
+                    System.out.println("-- also, stupid "+getProperty("_current_connection_driver","database")+" driver doesn't know about SQLFeatureNotSupportedException");
+                }
             }
+
+
+
 
             Thread shutdownhook = new Thread() {
                 @Override
@@ -462,6 +470,9 @@ public class SQLRunner {
         //    NOW~TIMESTAMP~26~26~6~1
         for(int i=1;i<=cols;i++){
             colName[i] = meta.getColumnName(i).toUpperCase();
+                // HIVE does the stupid database.column notation for column names.
+                colName[i] = colName[i].split("\\.")[0];
+
             colCalcSize[i] = colName[i].length();
             colTypeName[i] = meta.getColumnTypeName(i).toUpperCase();
             colTypeNameOrig[i] = meta.getColumnTypeName(i).toUpperCase();
