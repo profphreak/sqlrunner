@@ -471,7 +471,8 @@ public class SQLRunner {
         for(int i=1;i<=cols;i++){
             colName[i] = meta.getColumnName(i).toUpperCase();
                 // HIVE does the stupid database.column notation for column names.
-                colName[i] = colName[i].split("\\.")[0];
+                String[] colNameArr = colName[i].split("\\.");
+                colName[i] = colNameArr[ colNameArr.length - 1];
 
             colCalcSize[i] = colName[i].length();
             colTypeName[i] = meta.getColumnTypeName(i).toUpperCase();

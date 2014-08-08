@@ -22,6 +22,7 @@ if($args{help} || $args{'-help'} || $args{'--help'}){
     print qq|
     Commands include:
         help: (this screen)
+        nocreate: don't generate "create table" statement.
     |;
     exit;
 }
