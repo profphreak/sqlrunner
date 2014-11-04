@@ -639,7 +639,7 @@ public class SQLRunner {
             boolean pageFormat=false;
             
             // Determine underline character
-            String uChar = getEvalProperty("head_underline", "-");
+            String headUnderlineChar = getEvalProperty("head_underline", "-");
             
             // Determine pagesize
             int pageSize = Integer.parseInt(getEvalProperty("pagesize","2048"));
@@ -712,9 +712,9 @@ public class SQLRunner {
                                 ps.print(outstr + linesep);                       // output
                             sb.setLength(0);                    // reset buffer.
                             // add underline character
-                            if(!uChar.equals("none")){
+                            if(!headUnderlineChar.equals("none")){
                                 for(int i=1;i<=cols;i++){
-                                    sb.append(String.format("%"+colCalcSize[i]+"s", uChar).replace(' ', uChar.charAt(0)));
+                                    sb.append(String.format("%"+colCalcSize[i]+"s", headUnderlineChar).replace(' ', headUnderlineChar.charAt(0)));
                                     sb.append(" ");
                                 }
                                 sb.setLength(sb.length()-1);   // add new line.
@@ -769,10 +769,9 @@ public class SQLRunner {
                         ps.print(outstr + linesep);                       // output
                     sb.setLength(0);                    // reset buffer.
                     // add underline character
-                    String uChar = getEvalProperty("head_underline", "-");
-                    if(!uChar.equals("none")){
+                    if(!headUnderlineChar.equals("none")){
                         for(int i=1;i<=cols;i++){
-                            sb.append(String.format("%"+colCalcSize[i]+"s", uChar).replace(' ', uChar.charAt(0)));
+                            sb.append(String.format("%"+colCalcSize[i]+"s", headUnderlineChar).replace(' ', headUnderlineChar.charAt(0)));
                             sb.append(" ");
                         }
                         sb.setLength(sb.length()-1);   // add new line.
