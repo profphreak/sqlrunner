@@ -633,18 +633,28 @@ public class SQLRunner {
             for(int i=1;i<spaces.length;i++){
                 spaces[i] = spaces[i-1] + " ";
             }
-
-
-
-            // 
-            // do we display header?
-            //
-            if(getEvalProperty("head","off").equals("on")){
-                dataList.addElement(colName);
-            }
+            
+            // Determine header
+            String printHeader = getEvalProperty("head","off");
+            boolean pageFormat=false;
+            
+            // Determine underline character
+            String headUnderlineChar = getEvalProperty("head_underline", "-");
+            
+            // Determine pagesize
+            int pageSize = Integer.parseInt(getEvalProperty("pagesize","2048"));
 
             while(rs.next()){
                 outcnt++;
+                
+                //
+                // do we display header?
+                //
+                if(printHeader.equals("on") &&
+                    rs.getRow() % pageSize == 1 ){
+                    dataList.addElement(colName);
+                }
+                
                 String[] dataRecord = new String[cols+1];
                 for(int i=1;i<=cols;i++){
                     if(colIsDate[i]){        // if date, then format as YYYYMMDD
@@ -657,7 +667,7 @@ public class SQLRunner {
                         java.sql.Timestamp d = rs.getTimestamp(i);
                         if(!rs.wasNull())
                             dataRecord[i] = formats[i].format(d);
-                        else dataRecord[i] = nullval;                        
+                        else dataRecord[i] = nullval;
                     } else if(colIsTime[i]){                // time column.
                         java.sql.Time d = rs.getTime(i);
                         if(!rs.wasNull())
@@ -678,17 +688,90 @@ public class SQLRunner {
                         colCalcSize[i]=dataRecord[i].length();
                 }
                 dataList.addElement(dataRecord);
-                if(dataList.size() > 2048){
+                
+                if(dataList.size() > pageSize){
+                    pageFormat=true;
+                    int loopCnt = 1;
                     java.util.Enumeration<String[]> en = dataList.elements();
                     while(en.hasMoreElements()){
                         String[] r = en.nextElement();
-                        for(int i=1;i<=cols;i++){
-                            int d = colCalcSize[i] - r[i].length();
-                            if(colIsDouble[i] || colSiz[i]==0){
-                                sb.append(spaces[d] + r[i]);
-                            }else{
+                        // when processing first record (header)
+                        if (loopCnt == 1 && printHeader.equals("on")){
+                            // add a blank line 
+                            if (rs.getRow()/pageSize != 1) 
+                                ps.print(linesep);
+                            // add header
+                            for(int i=1;i<=cols;i++){
+                                int d = colCalcSize[i] - r[i].length();
                                 sb.append(r[i] + spaces[d]);
+                                sb.append(" ");
                             }
+                            sb.setLength(sb.length()-1);   // add new line.
+                            outstr = sb.toString();
+                            if(ps != null)
+                                ps.print(outstr + linesep);                       // output
+                            sb.setLength(0);                    // reset buffer.
+                            // add underline character
+                            if(!headUnderlineChar.equals("none")){
+                                for(int i=1;i<=cols;i++){
+                                    sb.append(String.format("%"+colCalcSize[i]+"s", headUnderlineChar).replace(' ', headUnderlineChar.charAt(0)));
+                                    sb.append(" ");
+                                }
+                                sb.setLength(sb.length()-1);   // add new line.
+                                outstr = sb.toString();
+                                if(ps != null)
+                                    ps.print(outstr + linesep);                       // output
+                                sb.setLength(0);                    // reset buffer.
+                            }
+                        }
+                        // print data
+                        else {
+                            for(int i=1;i<=cols;i++){
+                                int d = colCalcSize[i] - r[i].length();
+                                if(colIsDouble[i] || colCalcSize[i]==0){
+                                    sb.append(spaces[d] + r[i]);
+                                }else{
+                                    sb.append(r[i] + spaces[d]);
+                                }
+                                sb.append(" ");
+                            }
+                            sb.setLength(sb.length()-1);   // add new line.
+                            outstr = sb.toString();
+                            if(ps != null)
+                                ps.print(outstr + linesep);                       // output
+                            sb.setLength(0);                    // reset buffer.
+                        }
+                        loopCnt++;
+                    }
+                    dataList.clear();
+                }
+            }
+
+            // residual records (or if total records < pagesize)
+            int loopCnt = 1;
+            java.util.Enumeration<String[]> en = dataList.elements();
+            while(en.hasMoreElements()){
+                String[] r = en.nextElement();
+                // process first record
+                if (loopCnt == 1 && printHeader.equals("on")) {
+                    // add a blank line first
+                    if (pageFormat)
+                        ps.print(linesep);
+                    // add header
+                    for(int i=1;i<=cols;i++){
+                        int d = colCalcSize[i] - r[i].length();
+                        sb.append(r[i] + spaces[d]);
+                        sb.append(" ");
+                    }
+                    sb.setLength(sb.length()-1);   // add new line.
+                    outstr = sb.toString();
+                    if(ps != null)
+                        ps.print(outstr + linesep);                       // output
+                    sb.setLength(0);                    // reset buffer.
+                    // add underline character
+                    if(!headUnderlineChar.equals("none")){
+                        for(int i=1;i<=cols;i++){
+                            sb.append(String.format("%"+colCalcSize[i]+"s", headUnderlineChar).replace(' ', headUnderlineChar.charAt(0)));
                             sb.append(" ");
                         }
                         sb.setLength(sb.length()-1);   // add new line.
@@ -697,27 +780,25 @@ public class SQLRunner {
                             ps.print(outstr + linesep);                       // output
                         sb.setLength(0);                    // reset buffer.
                     }
-                    dataList.clear();
-                }                
-            }
-
-            java.util.Enumeration<String[]> en = dataList.elements();
-            while(en.hasMoreElements()){
-                String[] r = en.nextElement();
-                for(int i=1;i<=cols;i++){
-                    int d = colCalcSize[i] - r[i].length();
-                    if(colIsDouble[i] || colSiz[i]==0){
-                        sb.append(spaces[d] + r[i]);
-                    }else{
-                        sb.append(r[i] + spaces[d]);
-                    }
-                    sb.append(" ");
                 }
-                sb.setLength(sb.length()-1);   // add new line.
-                outstr = sb.toString();
-                if(ps != null)
-                    ps.print(outstr + linesep);                       // output
-                sb.setLength(0);                    // reset buffer.
+                // print data
+                else {
+                    for(int i=1;i<=cols;i++){
+                        int d = colCalcSize[i] - r[i].length();
+                        if(colIsDouble[i] || colSiz[i]==0){
+                            sb.append(spaces[d] + r[i]);
+                        }else{
+                            sb.append(r[i] + spaces[d]);
+                        }
+                        sb.append(" ");
+                    }
+                    sb.setLength(sb.length()-1);   // add new line.
+                    outstr = sb.toString();
+                    if(ps != null)
+                        ps.print(outstr + linesep);                       // output
+                    sb.setLength(0);                    // reset buffer.
+                }
+                loopCnt++;
             }
             dataList.clear();
 
