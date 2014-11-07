@@ -11,6 +11,7 @@ export PGPASSWORD=`echo "echo &&pass"|sqlrunner $@ -`;
 export PGUSER=`echo "echo &&user"|sqlrunner $@ -`;
 export PGDATABASE=`echo "echo &&dbname"|sqlrunner $@ -`;
 export PGHOST=`echo "echo &&host"|sqlrunner $@ -`;
+export PGPORT=`echo "echo &&port"|sqlrunner $@ -`;
 
 psql -v FETCH_COUNT=1000
 
