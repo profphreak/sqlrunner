@@ -1491,6 +1491,7 @@ public class SQLRunner {
                 Long.parseLong( getProperty("_TOTAL_startmillis","0"));
             System.out.printf("\n-- Total SQLRunner execution time: %.2f minutes.\n",(millis/1000.0)/60.0);
         }
+        System.exit(0);   // workaround for Hive JDBC driver bug; it leaves threads around.
     }
 }
 
