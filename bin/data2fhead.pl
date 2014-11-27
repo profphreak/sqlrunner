@@ -52,6 +52,7 @@ my $cnt = 0;
 my @vals;
 my @ints = map { 0 } 1..1024;
 my @decimals = map { 0 } 1..1024;
+my @pres = map { 0 } 1..1024;   # precision
 my @scales = map { 0 } 1..1024;  # max scale
 my @maxlen = map { 0 } 1..1024;
 my @tims = map { 0 } 1..1024;       # looks like time
@@ -68,8 +69,9 @@ while(<STDIN>){
             if(m/^-?(\d*)(\.(\d+))?$/){
                 my $len3 = defined($3) ? length($3) : 0;
                 my $len1 = defined($1) ? length($1) : 0;
-                $maxlen[$i] = $len1+$len3 if $maxlen[$i] < $len1+$len3;
+                $maxlen[$i] = length($_) if $maxlen[$i] < length($_);
                 $scales[$i] = $len3 if $scales[$i] < $len3;
+                $pres[$i] = $len1 if $pres[$i] < $len1;
                 $len3 > 0 ? $decimals[$i]++ : $ints[$i]++;
                 $dates[$i]++ if m/^(19|20)\d\d[01]\d[0123]\d$/;
             }elsif(m/^\d\d:\d\d:\d\d(\.\d+)?/){
@@ -91,7 +93,7 @@ while(<STDIN>){
 print join(',',map {
     my $t = "VARCHAR";
     my $s = $maxlen[$_];
-    my $p = $maxlen[$_];
+    my $p = $pres[$_] + $scales[$_];
     my $sc = $scales[$_];
     my $v = $vals[$_];
     if(!defined($v)){
@@ -129,5 +131,4 @@ print join(',',map {
 
     $head[$_]."~$t~$s~$p~$sc~".($v==$cnt ? 0:1)."~$t" 
 } 0..$#vals)."\n";
-
 
