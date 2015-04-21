@@ -123,6 +123,7 @@ public class SQLRunner {
      */
     public static void sqlRun(String sql,final PrintStream ps) throws Exception {
         long qtim = 0,otim = 0;
+        boolean isdatetimestamp = false;
 
         setProperty("_current_connection_laststmnt_raw",sql.trim());
         sql = evalString(sql);
@@ -177,10 +178,15 @@ public class SQLRunner {
         // see if we have this connection saved
         Connection connection = dbconnections.get(key.toString());
         if(connection == null){
+
+            String driverclass = getProperty("_current_connection_driver",null);
+            if( driverclass.toLowerCase().indexOf("oracle") >= 0 ){
+                isdatetimestamp = true;
+            }
             //
             // init driver.
             // 
-            Class.forName( getProperty("_current_connection_driver",null) ).newInstance();
+            Class.forName( driverclass ).newInstance();
         
             // 
             // connect.
@@ -380,7 +386,7 @@ public class SQLRunner {
 
         
         if(rs != null)
-            resultSetOutput(rs,ps);
+            resultSetOutput(rs,ps,isdatetimestamp);
 
         long etim = System.currentTimeMillis();
         
@@ -416,7 +422,7 @@ public class SQLRunner {
     /**
      * output data to a CSV file
      */
-    public static void resultSetOutput(ResultSet rs,PrintStream ps) throws Exception {
+    public static void resultSetOutput(ResultSet rs,PrintStream ps,boolean isdatetimestamp) throws Exception {
 
         // 
         // setup record delimiter for output
@@ -590,11 +596,17 @@ public class SQLRunner {
                 outcnt++;
                 for(int i=1;i<=cols;i++){
                     if(colIsDate[i]){        // if date, then format as YYYYMMDD
-                        // java.sql.Date d = rs.getDate(i);
-                        java.sql.Timestamp d = rs.getTimestamp(i);
-                        if(!rs.wasNull())
-                            sb.append(formats[i].format(d));
-                        else sb.append(nullval);
+                        if(isdatetimestamp){   // oracle dates are timestamps.
+                            java.sql.Timestamp d = rs.getTimestamp(i);
+                            if(!rs.wasNull())
+                                sb.append(formats[i].format(d));
+                            else sb.append(nullval);
+                        }else{
+                            java.sql.Date d = rs.getDate(i);
+                            if(!rs.wasNull())
+                                sb.append(formats[i].format(d));
+                            else sb.append(nullval);
+                        }
                     } else if(colIsTimestamp[i]){        // if date, then format as YYYYMMDDHHMMSS.SSS
                         java.sql.Timestamp d = rs.getTimestamp(i);
                         if(!rs.wasNull())
