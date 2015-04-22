@@ -20,9 +20,9 @@ for prop in `ls $basedir/lib/*jar $basedir/jdbc/*jar 2>/dev/null`; do
     export CLASSPATH="$CLASSPATH:$prop";    
 done
 
-#for prop in `find $HADOOP_HOME $HIVE_HOME -type f -iname "*jar" 2>/dev/null |grep -vi SLF4J|grep -vi log4j|grep -vi logging`; do
-#    export CLASSPATH="$CLASSPATH:$prop";
-#done
+for prop in `find $HADOOP_HOME $HIVE_HOME -type f -iname "*jar" 2>/dev/null |grep -vi SLF4J|grep -vi log4j|grep -vi logging`; do
+    export CLASSPATH="$CLASSPATH:$prop";
+done
 
 for prop in `ls $basedir/init/*properties $basedir/init/*sql 2>/dev/null`; do
     args="$args $prop";
