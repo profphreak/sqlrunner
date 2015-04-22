@@ -670,11 +670,17 @@ public class SQLRunner {
                 String[] dataRecord = new String[cols+1];
                 for(int i=1;i<=cols;i++){
                     if(colIsDate[i]){        // if date, then format as YYYYMMDD
-                        // java.sql.Date d = rs.getDate(i);
-                        java.sql.Timestamp d = rs.getTimestamp(i);
-                        if(!rs.wasNull())
-                            dataRecord[i] = formats[i].format(d);
-                        else dataRecord[i] = nullval;
+                        if(isdatetimestamp){   // oracle dates are timestamps.
+                            java.sql.Timestamp d = rs.getTimestamp(i);
+                            if(!rs.wasNull())
+                                dataRecord[i] = formats[i].format(d);
+                            else dataRecord[i] = nullval;
+                        }else{
+                            java.sql.Date d = rs.getDate(i);
+                            if(!rs.wasNull())
+                                dataRecord[i] = formats[i].format(d);
+                            else dataRecord[i] = nullval;
+                        }
                     } else if(colIsTimestamp[i]){        // if date, then format as YYYYMMDDHHMMSS.SSS
                         java.sql.Timestamp d = rs.getTimestamp(i);
                         if(!rs.wasNull())
@@ -852,10 +858,20 @@ public class SQLRunner {
                 for(int i=1;i<=cols;i++){
                     if(colIsDate[i]){        // if date, then format as YYYYMMDD
                         // java.sql.Date d = rs.getDate(i);
-                        java.sql.Timestamp d = rs.getTimestamp(i);
-                        if(!rs.wasNull())
-                            ps.print("<td>"+formats[i].format(d)+"</td>");
-                        else ps.print("<td></td>");
+                        if(isdatetimestamp){   // oracle dates are timestamps.
+                            java.sql.Timestamp d = rs.getTimestamp(i);
+                            if(!rs.wasNull())
+                                ps.print("<td>"+formats[i].format(d)+"</td>");
+                            else ps.print("<td></td>");
+                        }else{
+                            java.sql.Date d = rs.getDate(i);
+                            if(!rs.wasNull())
+                                ps.print("<td>"+formats[i].format(d)+"</td>");
+                            else ps.print("<td></td>");
+                        }
+
+
+                        
                     } else if(colIsTimestamp[i]){        // if date, then format as YYYYMMDDHHMMSS.SSS
                         java.sql.Timestamp d = rs.getTimestamp(i);
                         if(!rs.wasNull())
