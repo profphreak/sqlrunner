@@ -119,6 +119,27 @@ public class SQLRunner {
     }
 
     /**
+     * execute a shell command
+     */
+    public static String executeShellCommand(String cmd) {
+        StringBuffer sb = new StringBuffer();
+        Process p;
+        try {
+            String[] cmd2 = {"/bin/sh", "-c", cmd};
+            p = Runtime.getRuntime().exec(cmd2);
+            p.waitFor();
+            BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line = "";
+            while((line = br.readLine()) != null){
+                sb.append(line + "\n");
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return sb.toString().trim();
+    }
+
+    /**
      * Run sql query
      */
     public static void sqlRun(String sql,final PrintStream ps) throws Exception {
@@ -163,6 +184,22 @@ public class SQLRunner {
             if(val == null)
                 val = getEvalProperty(getEvalProperty("db","db")+"_"+sufix,null);
             
+            // if db_pass_cmd is defined, then run this command to get password.
+            if(val == null || val.trim().length() == 0){
+                if(getEvalProperty("log","off").equals("on"))
+                    System.out.println("-- "+sufix+" is not defined.");
+                
+                // if value is null, check if _cmd is defined.
+                String cmd = getEvalProperty(getEvalProperty("db","db")+"_"+sufix+"_cmd",
+                    getEvalProperty(sufix+"_cmd",null));
+                if(cmd != null){
+                    if(getEvalProperty("log","off").equals("on"))
+                        System.out.println("-- running: "+cmd+" to define "+sufix);
+                    val = executeShellCommand(cmd);
+                    // DO NOT log the value.
+                }
+            }
+
             // we -must- have url,user,pass,driver defined in environment.
             if(val == null)
                 throw new IllegalStateException("undefined db ("+sufix+") connection info");
