@@ -186,8 +186,8 @@ public class SQLRunner {
             
             // if db_pass_cmd is defined, then run this command to get password.
             if(val == null || val.trim().length() == 0){
-                if(getEvalProperty("log","off").equals("on"))
-                    System.out.println("-- "+sufix+" is not defined.");
+                //if(getEvalProperty("log","off").equals("on"))
+                //    System.out.println("-- "+sufix+" is not defined.");
                 
                 // if value is null, check if _cmd is defined.
                 String cmd = getEvalProperty(getEvalProperty("db","db")+"_"+sufix+"_cmd",
