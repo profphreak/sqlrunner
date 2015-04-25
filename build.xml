@@ -17,7 +17,7 @@
   <target name="compile" depends="init"
         description="compile the source " >
     <!-- Compile the java code from ${src} into ${build} -->
-    <javac srcdir="${src}" destdir="${build}" target="1.5" source="1.5" deprecation="yes" debug="yes" >
+    <javac includeantruntime="false" srcdir="${src}" destdir="${build}" target="1.6" source="1.6" deprecation="yes" debug="yes" >
         <compilerarg value="-Xlint"/>
     </javac>
   </target>

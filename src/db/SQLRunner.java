@@ -457,6 +457,63 @@ public class SQLRunner {
 
 
     /**
+     * customized date formatter, to allow for nanoseconds/microseconds output from java.sql.Timestamp objects.
+     */
+    @SuppressWarnings("serial")     
+    public static Format dateFormatFactory(String pttrn){
+        if(pttrn.indexOf("NS") >= 0){
+            String[] ns = pttrn.split("NS");
+            final Format[] fns = new Format[ns.length+1];
+            for(int i=0;i<ns.length;i++)
+                fns[i] = ns[i].length() > 0 ? (new SimpleDateFormat(ns[i])) : null;
+            return new Format(){
+                public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+                    long nanos = 0;
+                    if(obj instanceof java.sql.Timestamp)
+                        nanos = ((java.sql.Timestamp)obj).getNanos();
+                    Format[] lns = fns;
+                    if(lns.length == 0)
+                        toAppendTo.append(String.format("%09d",nanos));
+                    else
+                        for(int i=0;i<lns.length;i++){
+                            if(lns[i] != null) toAppendTo.append(lns[i].format(obj));
+                            if( i<lns.length-1 ) toAppendTo.append(String.format("%09d",nanos));
+                        }
+                    return toAppendTo;
+                }
+                public Object parseObject(String source, ParsePosition pos){return null;}
+            };
+        }
+        if(pttrn.indexOf("US") >= 0){
+            String[] ns = pttrn.split("US");
+            final Format[] fns = new Format[ns.length+1];
+            for(int i=0;i<ns.length;i++)
+                fns[i] = ns[i].length() > 0 ? (new SimpleDateFormat(ns[i])) : null;
+            return new Format(){
+                public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+                    long nanos = 0;
+                    if(obj instanceof java.sql.Timestamp)
+                        nanos = ((java.sql.Timestamp)obj).getNanos() / 1000;
+                    Format[] lns = fns;
+                    if(lns.length == 0)
+                        toAppendTo.append(String.format("%06d",nanos));
+                    else
+                        for(int i=0;i<lns.length;i++){
+                            if(lns[i] != null) toAppendTo.append(lns[i].format(obj));
+                            if( i<lns.length-1 ) toAppendTo.append(String.format("%06d",nanos));
+                        }
+                    return toAppendTo;
+                }
+                public Object parseObject(String source, ParsePosition pos){return null;}
+            };
+        }
+        return new SimpleDateFormat(pttrn);
+    }
+
+
+
+
+    /**
      * output data to a CSV file
      */
     public static void resultSetOutput(ResultSet rs,PrintStream ps,boolean isdatetimestamp) throws Exception {
@@ -563,9 +620,9 @@ public class SQLRunner {
         // 
         // all dates are output in YYYYMMDD format.
         //
-        Format dateFormat = new SimpleDateFormat(System.getProperty("dateformat","yyyyMMdd"));
-        Format timestampFormat = new SimpleDateFormat(System.getProperty("timestampformat","yyyyMMdd HH:mm:ss.SSS"));
-        Format timeFormat = new SimpleDateFormat(System.getProperty("timeformat","HH:mm:ss.SSS"));
+        Format dateFormat = dateFormatFactory(System.getProperty("dateformat","yyyyMMdd"));
+        Format timestampFormat = dateFormatFactory(System.getProperty("timestampformat","yyyyMMdd HH:mm:ss.SSS"));
+        Format timeFormat = dateFormatFactory(System.getProperty("timeformat","HH:mm:ss.SSS"));
 
         String outstr = "";
         
@@ -590,7 +647,7 @@ public class SQLRunner {
         Format[] formats = new Format[cols+1];
         for(int i=1;i<=cols;i++){
             if(System.getProperty(colName[i]+"_format") != null){
-                formats[i] = new SimpleDateFormat(System.getProperty(colName[i]+"_format"));
+                formats[i] = dateFormatFactory(System.getProperty(colName[i]+"_format"));
             } else if(colIsDate[i]){
                 formats[i] = dateFormat;
             } else if(colIsTime[i]){
@@ -743,7 +800,7 @@ public class SQLRunner {
                         colCalcSize[i]=dataRecord[i].length();
                 }
                 dataList.addElement(dataRecord);
-                
+             
                 if(dataList.size() > pageSize){
                     pageFormat=true;
                     int loopCnt = 1;
