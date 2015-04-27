@@ -7,11 +7,11 @@
 # the Free Software Foundation, version 2, or higher.
 
 
-export PGPASSWORD=`echo "echo &&pass"|sqlrunner $@ -`;
-export PGUSER=`echo "echo &&user"|sqlrunner $@ -`;
-export PGDATABASE=`echo "echo &&dbname"|sqlrunner $@ -`;
-export PGHOST=`echo "echo &&host"|sqlrunner $@ -`;
-export PGPORT=`echo "echo &&port"|sqlrunner $@ -`;
+export PGPASSWORD=`echo "echo &&pass"|sqlrunner $@ - 2>/dev/null`;
+export PGUSER=`echo "echo &&user"|sqlrunner $@ - 2>/dev/null`;
+export PGDATABASE=`echo "echo &&dbname"|sqlrunner $@ - 2>/dev/null`;
+export PGHOST=`echo "echo &&host"|sqlrunner $@ - 2>/dev/null`;
+export PGPORT=`echo "echo &&port"|sqlrunner $@ - 2>/dev/null`;
 
 psql -v FETCH_COUNT=1000
 
