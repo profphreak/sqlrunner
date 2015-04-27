@@ -327,6 +327,16 @@ echo "select $head from $TABLE" |sqlrunner db=$somename delim="|" - > somewhere
 cat test.dat | dbload.pl db=somename table=$TABLE delim="|" timeformat="HH24:MI:SS.FF6"
 
 
+Alternatively, define timestampformat to include microseconds, e.g.:
+# dump data with microsecond timestamps
+echo "select * from $TABLE" |sqlrunner db=$somename delim="|" timestampformat='yyyy-MM-dd HH:mm:ss.US' - > somewhere
+
+Or
+
+# dump data with nanosecond timestamps
+echo "select * from $TABLE" |sqlrunner db=$somename delim="|" timestampformat='yyyy-MM-dd HH:mm:ss.NS' - > somewhere
+
+
 ---------------------------------------------------------------------
 -- load tab delimited data with MM/DD/YYYY dates into Netezza;
 -- same idea for YYYY-MM-DD dates, etc.
@@ -367,5 +377,13 @@ You should also use: nullval='\N' and delimiter \1, e.g.:
 
 echo "select * from whatever"|sqlrunner db=whatever timestampformat="yyyy-MM-dd HH:mm:ss.SSS" dateformat="yyyy-MM-dd" nullval="\N" delim="\1" - | hadoop fs -put ...
 
+Also consider dumping microseconds instead of milliseconds, e.g.:
+
+echo "select * from whatever"|sqlrunner db=whatever timestampformat="yyyy-MM-dd HH:mm:ss.US" dateformat="yyyy-MM-dd" nullval="\N" delim="\1" - | hadoop fs -put ...
+
 Note that you can define most of these at the DDL level in Hive (and have Hive read your files in whatever format you wish, etc.).
+
+
+
+
 
