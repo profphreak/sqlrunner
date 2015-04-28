@@ -522,13 +522,18 @@ public class SQLRunner {
         // setup record delimiter for output
         //
         String delim = getEvalProperty("delim",",");
+        String textdelim = getEvalProperty("textdelim"," ");
         String linesep = getEvalProperty("linesep","\n");
 
         
-
         delim = delim.replaceAll("\\\\t","\t");
         delim = delim.replaceAll("\\\\n","\n");
         delim = delim.replaceAll("\\\\r","\r");
+
+        textdelim = textdelim.replaceAll("\\\\t","\t");
+        textdelim = textdelim.replaceAll("\\\\n","\n");
+        textdelim = textdelim.replaceAll("\\\\r","\r");
+
 
         linesep = linesep.replaceAll("\\\\t","\t");
         linesep = linesep.replaceAll("\\\\n","\n");
@@ -539,10 +544,13 @@ public class SQLRunner {
             String octi = Integer.toOctalString(i);
             String octr = Character.toString((char)i);
             delim = delim.replaceAll("\\\\00"+octi,octr);
+            textdelim = textdelim.replaceAll("\\\\00"+octi,octr);
             linesep = linesep.replaceAll("\\\\00"+octi,octr);
             delim = delim.replaceAll("\\\\0"+octi,octr);
+            textdelim = textdelim.replaceAll("\\\\0"+octi,octr);
             linesep = linesep.replaceAll("\\\\0"+octi,octr);
             delim = delim.replaceAll("\\\\"+octi,octr);
+            textdelim = textdelim.replaceAll("\\\\"+octi,octr);
             linesep = linesep.replaceAll("\\\\"+octi,octr);
         }
 
@@ -734,7 +742,7 @@ public class SQLRunner {
         } else if ( getEvalProperty("outformat","delim").equals("text") ){
 
             java.util.Vector<String[]> dataList = new java.util.Vector<String[]>();
-            String[] spaces = new String[1024];
+            String[] spaces = new String[4096];
             spaces[0] = "";
             for(int i=1;i<spaces.length;i++){
                 spaces[i] = spaces[i-1] + " ";
@@ -816,9 +824,9 @@ public class SQLRunner {
                             for(int i=1;i<=cols;i++){
                                 int d = colCalcSize[i] - r[i].length();
                                 sb.append(r[i] + spaces[d]);
-                                sb.append(" ");
+                                sb.append(textdelim);
                             }
-                            sb.setLength(sb.length()-1);   // add new line.
+                            sb.setLength(sb.length()-textdelim.length());   // add new line.
                             outstr = sb.toString();
                             if(ps != null)
                                 ps.print(outstr + linesep);                       // output
@@ -827,9 +835,9 @@ public class SQLRunner {
                             if(!headUnderlineChar.equals("none")){
                                 for(int i=1;i<=cols;i++){
                                     sb.append(String.format("%"+colCalcSize[i]+"s", headUnderlineChar).replace(' ', headUnderlineChar.charAt(0)));
-                                    sb.append(" ");
+                                    sb.append(textdelim);
                                 }
-                                sb.setLength(sb.length()-1);   // add new line.
+                                sb.setLength(sb.length()-textdelim.length());   // add new line.
                                 outstr = sb.toString();
                                 if(ps != null)
                                     ps.print(outstr + linesep);                       // output
@@ -845,9 +853,9 @@ public class SQLRunner {
                                 }else{
                                     sb.append(r[i] + spaces[d]);
                                 }
-                                sb.append(" ");
+                                sb.append(textdelim);
                             }
-                            sb.setLength(sb.length()-1);   // add new line.
+                            sb.setLength(sb.length()-textdelim.length());   // add new line.
                             outstr = sb.toString();
                             if(ps != null)
                                 ps.print(outstr + linesep);                       // output
@@ -873,9 +881,9 @@ public class SQLRunner {
                     for(int i=1;i<=cols;i++){
                         int d = colCalcSize[i] - r[i].length();
                         sb.append(r[i] + spaces[d]);
-                        sb.append(" ");
+                        sb.append(textdelim);
                     }
-                    sb.setLength(sb.length()-1);   // add new line.
+                    sb.setLength(sb.length()-textdelim.length());   // add new line.
                     outstr = sb.toString();
                     if(ps != null)
                         ps.print(outstr + linesep);                       // output
@@ -884,9 +892,9 @@ public class SQLRunner {
                     if(!headUnderlineChar.equals("none")){
                         for(int i=1;i<=cols;i++){
                             sb.append(String.format("%"+colCalcSize[i]+"s", headUnderlineChar).replace(' ', headUnderlineChar.charAt(0)));
-                            sb.append(" ");
+                            sb.append(textdelim);
                         }
-                        sb.setLength(sb.length()-1);   // add new line.
+                        sb.setLength(sb.length()-textdelim.length());   // add new line.
                         outstr = sb.toString();
                         if(ps != null)
                             ps.print(outstr + linesep);                       // output
@@ -902,9 +910,9 @@ public class SQLRunner {
                         }else{
                             sb.append(r[i] + spaces[d]);
                         }
-                        sb.append(" ");
+                        sb.append(textdelim);
                     }
-                    sb.setLength(sb.length()-1);   // add new line.
+                    sb.setLength(sb.length()-textdelim.length());   // add new line.
                     outstr = sb.toString();
                     if(ps != null)
                         ps.print(outstr + linesep);                       // output
@@ -1551,6 +1559,7 @@ public class SQLRunner {
         setProperty("gocmd_default","/");
         setProperty("delimReplace_default"," ");
         setProperty("delim_default",",");
+        setProperty("textdelim_default"," ");
         setProperty("linesep_default","\n");
         setProperty("outformat_default","delim");
         setProperty("db_default","db");
