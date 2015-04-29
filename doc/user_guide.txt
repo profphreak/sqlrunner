@@ -384,6 +384,25 @@ echo "select * from whatever"|sqlrunner db=whatever timestampformat="yyyy-MM-dd 
 Note that you can define most of these at the DDL level in Hive (and have Hive read your files in whatever format you wish, etc.).
 
 
+*******************************************************
+Output formats
 
+By default, sqlrunner outputs CSV format. You can change 
+the delimiter via delim parameter.
 
+For example, to output tab delimited files, specify "\t" as the delimter.
+
+echo "select * from sometable limit 10"|sqlrunner db=somedb head delim="\t" -
+
+This is the default outformat. SQLRunner can also output 
+fixed width format (easier for human readability).
+
+echo "select * from sometable limit 10"|sqlrunner db=somedb head outformat=text -
+
+The delimiter between columns (in such a fixed width format) is controled
+via the textdelim= parameter, e.g.:
+
+echo "select * from sometable limit 10"|sqlrunner db=somedb head outformat=text textdelim=" | " -
+
+SQLRunner also supports outformat=html.
 
