@@ -599,8 +599,13 @@ public class SQLRunner {
             String tm = colTypeName[i];
 
             // special case for Oracle (number without precision nor scale).
-            if(colTypeName[i].equals("NUMBER") && colPres[i]==0 && colScal[i]==0){
-                colIsDouble[i]=true;
+            // also special case for Greenplum; it too has numeric with 0s.
+            if(colPres[i]==0 && colScal[i]==0){
+                if(tm.matches(".*NUMERIC.*") || tm.matches(".*NUMBER.*") || 
+                    tm.matches(".*DECIMAL.*") || tm.matches(".*DOUBLE.*") || 
+                    tm.matches(".*FLOAT.*") || tm.matches(".*REAL.*")){
+                        colIsDouble[i]=true;
+                }
             }
 
             if(tm.matches(".*NUMERIC.*") || tm.matches(".*NUMBER.*")){
