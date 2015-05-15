@@ -364,7 +364,7 @@ public class SQLRunner {
 
             try {
                 // cleanup if killed.
-                Runtime.getRuntime().addShutdownHook(shutdownhook);            
+                Runtime.getRuntime().addShutdownHook(shutdownhook); 
                 rsout = statement.execute(sql);
             } catch(java.lang.Exception e){
                 if( // Postgres
@@ -399,6 +399,9 @@ public class SQLRunner {
                 double d = ((otim - qtim) / 1000.0) / 60;
                 System.out.printf("\n--SQL END: "+new java.util.Date(otim)+"; %.2f min\n",d);
                 if(!rsout){
+                    // jdbc4 has a long (not int) version of this method.
+                    // too bad drivers are stupid and fail at the execute step,
+                    // and not during getUpdateCount step.
                     System.out.println("-- UpdateCount: "+statement.getUpdateCount());
                 }
                 System.out.println("-----------------------------------");
