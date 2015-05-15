@@ -1199,9 +1199,9 @@ public class SQLRunner {
                 line = Pattern.compile("--@@\\s*SET\\s*(.*)",
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(line).replaceAll("def $1");
                 line = Pattern.compile("--@@\\s*ignore_sql_error\\s*=\\s*on\\s*;",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(line).replaceAll("set errors off;");
+                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(line).replaceAll("def  errors='off';");
                 line = Pattern.compile("--@@\\s*ignore_sql_error\\s*=\\s*off\\s*;",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(line).replaceAll("set errors on;");
+                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(line).replaceAll("def errors='on';");
             }
             
             line = rtrim(line);
@@ -1280,7 +1280,7 @@ public class SQLRunner {
                     if(line.length() > 0)
                         sb += line + "\n";
                 }
-            }else if(strmatch(line,"^\\s*set\\s+") != null && getEvalProperty("set","on").equals("on")){
+            }else if(strmatch(line,"^\\s*set\\s+") != null && getEvalProperty("set","off").equals("on")){
                 // 
                 // handle the "set " command.
                 // this can be:  set blah glah on spool env log off
@@ -1313,7 +1313,8 @@ public class SQLRunner {
                 }
                 sb = "";
                 linenosql = 0;
-            }else if(strmatch(line,"^\\s*(unset|undef(ine)?)\\s+") != null && getEvalProperty("set","on").equals("on")){
+            }else if(strmatch(line,"^\\s*(unset|undef(ine)?)\\s+") != null && getEvalProperty("set","off").equals("on")){
+                // don't think anyone would care, but default is to mask undefine command.
                 // 
                 // handle the "unset " command.
                 // this can be:  unset blah glah on spool env log
@@ -1554,6 +1555,7 @@ public class SQLRunner {
 
         // defaults that user can change.
         setProperty("env_default","off");
+        setProperty("set_default","off");
         setProperty("log_default","off");
         setProperty("console_default","off");
         setProperty("errors_default","on");
