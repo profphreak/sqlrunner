@@ -14,6 +14,8 @@
 # the Free Software Foundation, version 2, or higher.
 
 
+# TODO: correct NULLs (nulls should not participate in min/max functions).
+
 use strict;
 use warnings;
 

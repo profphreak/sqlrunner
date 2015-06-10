@@ -32,6 +32,7 @@ while(<STDIN>){
     while($numProcs >= $maxThisTime){
         $numProcs-- if wait();
     }
+    sleep $args{delay} if defined $args{delay};
     if(fork()){
         $numProcs++;
     }else{
@@ -51,6 +52,7 @@ while(<STDIN>){
         $cmd=~s/\{\.\/\}/$bnoext/sgi;
         $cmd=~s/\{#\}/$./sgi;
         $cmd=~s/\{uuid\}/$a=`uuidgen`; $a=~s{^\s+|\s+}{}sgi;$a/sgie;
+        $cmd=~s/\{time\}/$a=time(); $a=~s{^\s+|\s+}{}sgi;$a/sgie;
 
         #print "running [$cmd]\n";
         # change to chdir before running (if specified).
