@@ -221,32 +221,32 @@ my $udaf = {
         $$r = $v==int($v) ? sprintf("%d",$v) : sprintf("%-.8f",$v) },
     },
     max_u => {
-        push=> sub { my ($o,$v) = @_; $o->{max}=$v if !defined($o->{max}) || $o->{max}<$v },
+        push=> sub { my ($o,$v) = @_; if(defined($v)){ $o->{max}=$v if !defined($o->{max}) || $o->{max}<$v } },
         set=> sub { my ($o,$r) = @_; $$r = $o->{max}; },
     },
     min_u => {
-        push=> sub { my ($o,$v) = @_; $o->{min}=$v if !defined($o->{min}) || $o->{min}>$v },
+        push=> sub { my ($o,$v) = @_; if(defined($v)){ $o->{min}=$v if !defined($o->{min}) || $o->{min}>$v } },
         set=> sub { my ($o,$r) = @_; $$r = $o->{min}; },
     },
     max => {
-        init=> sub { my ($o) = @_; $o->{buf}=[]; },
-        push=> sub { my ($o,$v) = @_; push @{$o->{buf}},$v; $o->{max}=$v if !defined($o->{max}) || $o->{max}<$v },
+        init=> sub { my ($o) = @_; $o->{buf}=[]; $o->{max}=undef; },
+        push=> sub { my ($o,$v) = @_; push @{$o->{buf}},$v; if(defined($v)){ $o->{max}=$v if !defined($o->{max}) || $o->{max}<$v } },
         shift=> sub { my ($o,$v) = @_; shift @{$o->{buf}};  
-            if($v == $o->{max}){    # max may have changed
-                my $m = $o->{buf}[0] if $#{$o->{buf}};
-                map { $m = $_ if $m < $_ } @{$o->{buf}};
+            if(defined($v) && defined($o->{max}) && $v == $o->{max}){    # max may have changed
+                my $m = $#{$o->{buf}}>=0 ? $o->{buf}[0] : undef;
+                map { $m = $_ if $m < $_ } grep {defined} @{$o->{buf}};
                 $o->{max} = $m;
             }
         },
         set=> sub { my ($o,$r) = @_; $$r = $o->{max}; },
     },
     min => {
-        init=> sub { my ($o) = @_; $o->{buf}=[]; },
-        push=> sub { my ($o,$v) = @_; push @{$o->{buf}},$v; $o->{min}=$v if !defined($o->{min}) || $o->{min}>$v },
+        init=> sub { my ($o) = @_; $o->{buf}=[]; $o->{min}=undef; },
+        push=> sub { my ($o,$v) = @_; push @{$o->{buf}},$v; if(defined($v)){ $o->{min}=$v if !defined($o->{min}) || $o->{min}>$v } },
         shift=> sub { my ($o,$v) = @_; shift @{$o->{buf}};
-            if($v == $o->{min}){    # max may have changed
-                my $m = $o->{buf}[0] if $#{$o->{buf}};
-                map { $m = $_ if $m > $_ } @{$o->{buf}};
+            if(defined($v) && defined($o->{min}) && $v == $o->{min}){    # max may have changed
+                my $m = $#{$o->{buf}}>=0 ? $o->{buf}[0] : undef;
+                map { $m = $_ if $m > $_ } grep {defined} @{$o->{buf}};
                 $o->{min} = $m;
             }
         },
