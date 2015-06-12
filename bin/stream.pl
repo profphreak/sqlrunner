@@ -234,7 +234,7 @@ my $udaf = {
         shift=> sub { my ($o,$v) = @_; shift @{$o->{buf}};  
             if(defined($v) && defined($o->{max}) && $v == $o->{max}){    # max may have changed
                 my $m = $#{$o->{buf}}>=0 ? $o->{buf}[0] : undef;
-                map { $m = $_ if $m < $_ } grep {defined} @{$o->{buf}};
+                map { $m = $_ if !defined($m) || $m < $_ } grep {defined} @{$o->{buf}};
                 $o->{max} = $m;
             }
         },
@@ -246,7 +246,7 @@ my $udaf = {
         shift=> sub { my ($o,$v) = @_; shift @{$o->{buf}};
             if(defined($v) && defined($o->{min}) && $v == $o->{min}){    # max may have changed
                 my $m = $#{$o->{buf}}>=0 ? $o->{buf}[0] : undef;
-                map { $m = $_ if $m > $_ } grep {defined} @{$o->{buf}};
+                map { $m = $_ if !defined($m) || $m > $_ } grep {defined} @{$o->{buf}};
                 $o->{min} = $m;
             }
         },
