@@ -356,7 +356,8 @@ done
 -- load data while filtering non-printable characters.
 cat data.dat | perl -ne's/[\x7F-\xFF]//sgi; print' | dbload.pl db=gpdb table=mast delim="|"
 
-
+-- Some databases treat backslashes as escape caracters, so escape them with a backslash.
+cat data.dat | perl -ne's/\\/\\\\/sgi; print' | dbload.pl db=gpdb table=mast delim="|"
 
 -- loading .csv data into Amazon Redshift from S3
 -- (assuming you've defined redshift connection, aws_accessKey and aws_secretKey)
