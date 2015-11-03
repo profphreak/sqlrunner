@@ -580,7 +580,7 @@ public class SQLRunner {
         // populate metadata arrays (for output).
         //    NOW~TIMESTAMP~26~26~6~1
         for(int i=1;i<=cols;i++){
-            colName[i] = meta.getColumnName(i).toUpperCase();
+            colName[i] = meta.getColumnName(i).toLowerCase();
                 // HIVE does the stupid database.column notation for column names.
                 String[] colNameArr = colName[i].split("\\.");
                 colName[i] = colNameArr[ colNameArr.length - 1];
