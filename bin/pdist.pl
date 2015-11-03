@@ -24,13 +24,17 @@ map {my ($n,$v)=split/=/,$_,2; $args{$n}= defined($v) ? $v:1 } @ARGV;
 
 die qq{usage: [ls] | $0 [cmd='command \$_'] [threads=16]\n} unless $args{cmd};
 
+my $ret = 0;
 my $numProcs=0;
 while(<STDIN>){
     chomp;
     my $maxThisTime = getMaxProcs();
 
     while($numProcs >= $maxThisTime){
-        $numProcs-- if wait();
+        if(wait() > 0){
+            $ret |= ($?>>8);
+            $numProcs--;
+        }
     }
     sleep $args{delay} if defined $args{delay};
     if(fork()){
@@ -58,11 +62,15 @@ while(<STDIN>){
         # change to chdir before running (if specified).
         chdir "$args{chdir}" if defined $args{chdir};
         `$cmd`;
+        $ret |= ($?>>8);
         print "$_\n" if defined $args{pipe};
-        exit;
+        exit $ret;
     }
 }
-1 while(wait() > 0);
+while(wait() > 0){
+    $ret |= ($?>>8);
+}
+exit $ret;
 
 sub getMaxProcs {
     if(-f $args{threads}){
