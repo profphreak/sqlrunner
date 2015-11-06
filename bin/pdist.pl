@@ -53,7 +53,7 @@ my $numProcs=0;
 my (@cmdqueue,%state,%pid2id);
 
 # attempt to recover from a previously created log file.
-if($args{recover}){
+if($args{recover} && -f $args{log}){
     open my $in,$args{log} or die "unable to open log file: $args{log}\n";
     while(<$in>){
         chomp;
