@@ -177,13 +177,14 @@ exit $ret;
 sub waitForChild {
     my $pid = wait();                   # wait for child to terminate    
     if($pid > 0){                       # if got child process id
+        my $err = $?>>8;
         my $id = $pid2id{$pid};         # get pid to command id mapping.
         delete $pid2id{$pid};   # child no longer exists            
 
         my $chld=$state{$id};
         $chld->{etim} = gettim();       # record when process finished.
-        $chld->{ret} = ($?>>8);         # record return code.
-        if( $?>>8 ){        # command failed
+        $chld->{ret} = $err;         # record return code.
+        if( $err ){        # command failed
             $chld->{failed} = 1;         # record failure.
             writelog("$chld->{etim}: FAILED: ".join(", ",map { $_."=".$chld->{$_} } qw(id pid ret tim etim cmd))."\n");
         }else{          # command succeeded. 
@@ -193,7 +194,7 @@ sub waitForChild {
                     qw(id pid ret tim etim cmd))."\n");
             print "$chld->{cmd}\n" if defined $args{pipe};
         }
-        $ret |= ($?>>8);                # keep track of global return code.
+        $ret |= $err;                # keep track of global return code.
         $numProcs--;                    # free up slot for next job.
         die "child failed: childid:$id: pid:$pid line:$chld->{cmd}\n" if $args{dieonfail} && $ret;     # DIE!!!
     }
