@@ -183,7 +183,8 @@ sub waitForChild {
 
         my $chld=$state{$id};
         $chld->{etim} = gettim();       # record when process finished.
-        $chld->{ret} = $err;         # record return code.
+        $chld->{ret} = $err;            # record return code.
+        $chld->{running} = 0;         # not running anymore.
         if( $err ){        # command failed
             $chld->{failed} = 1;         # record failure.
             writelog("$chld->{etim}: FAILED: ".join(", ",map { $_."=".$chld->{$_} } qw(id pid ret tim etim cmd))."\n");
