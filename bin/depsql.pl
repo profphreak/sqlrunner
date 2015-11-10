@@ -42,6 +42,7 @@ s/('.*?')/push @str,$1; '#######'.$#str.'#######'/sgie;
 
 # cut input into statements
 my @stmts = split/;/;       # cut into statements
+pop @stmts;     # remove stuff after last statement.
 
 my @stmtdep = map { [] } @stmts;
 my (%usedtbls, %tbls);
@@ -57,8 +58,6 @@ for(my $i=0;$i<=$#stmts;$i++){
     if(m/drop\s+table\s+(\w+)/i){
         my $t = lc $1;
         push @{$stmtdep[$i]},grep { $_ != $i } @{$usedtbls{$t}} if $usedtbls{$t};
-        delete $usedtbls{$t};
-        $usedtbls{$t} = undef;
         $tbls{$t} = $i;
     }elsif(m/create\s+table\s+(\w+)/i){
         $tbls{lc $1} = $i;
@@ -69,8 +68,6 @@ for(my $i=0;$i<=$#stmts;$i++){
     }elsif(m/alter\s+table\s+(\w+).*?rename\s+to\s+(\w+)/i){
         my $t = lc $1;
         push @{$stmtdep[$i]},grep { $_ != $i } @{$usedtbls{$t}} if $usedtbls{$t};
-        delete $usedtbls{$t};
-        $usedtbls{$t} = undef;
         $tbls{lc $2} = $i;
     }
 }
@@ -87,6 +84,7 @@ for(my $i=0;$i<=$#stmts;$i++){
         my %dups;
         my @depdedup = grep { ! $dups{$_}++ } @{$stmtdep[$i]};
         $_ = $stmts[$i];
+        s/^\s+|\s+$//sgi;
         s/#######(\d+)#######/$str[$1]/sgie; 
         if($args{debug}){
             print "-- query $i, depends on: ".join(", ",@depdedup)."\n";
