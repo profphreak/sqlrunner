@@ -40,6 +40,7 @@ die qq(usage: [ls] | $0 [cmd='command \$_'] [threads=16]
 
     threads parameter may be a filename. on each iteration $0 will check for changes.
     
+    waitonfail  if specified, script waits for children, then terminates. 
     dieonfail   if specified, script dies if any children terminate abnormally. 
     stdout      if specified, will display debug log to stdout.
     delay=N     if specified, waits N seconds between jobs.
@@ -51,6 +52,7 @@ die qq(usage: [ls] | $0 [cmd='command \$_'] [threads=16]
 my $ret = 0;
 my $numProcs=0;
 my (@cmdqueue,%state,%pid2id);
+my $done = 0;
 
 # attempt to recover from a previously created log file.
 if($args{recover} && -f $args{log}){
@@ -63,13 +65,14 @@ if($args{recover} && -f $args{log}){
 }
 
 
-while(1){
+while(!$done){
 
     my $maxThisTime = getMaxProcs();        # get current limit
     while($numProcs >= $maxThisTime){       # while over limit
         waitForChild();
         $maxThisTime = getMaxProcs();       # update limit (perhaps changed). 
     }
+    last if $done;                          # done.
 
     # we have free slot to run something.
 
@@ -168,7 +171,7 @@ while(1){
         }
     }
 }
-
+# wait for remaining processes.
 while(waitForChild() > 0){}
 
 exit $ret;
@@ -197,7 +200,10 @@ sub waitForChild {
         }
         $ret |= $err;                # keep track of global return code.
         $numProcs--;                    # free up slot for next job.
-        die "child failed: childid:$id: pid:$pid line:$chld->{cmd}\n" if $args{dieonfail} && $ret;     # DIE!!!
+        
+        $done = 1 if $args{waitonfail} && $ret;     # wait for running processes!
+        die "child failed: childid:$id: pid:$pid line:$chld->{cmd}\n" if $args{dieonfail} 
+
     }
     return $pid;
 }
