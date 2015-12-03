@@ -102,14 +102,13 @@ if($args{pdistfile}){
 }
 
 
-my (%addfile,%setcmd);   # add file, set variable.
+my @metacommands;   # add file, set variable.
 
 for(my $i=0;$i<=$#stmts;$i++){
     local $_ = $stmts[$i];
 
     unless(defined($_)){    # reached end of file, reset variables.
-        %addfile = ();
-        %setcmd = ();
+        @metacommands = ();
         next;
     }
     s/^\s+|\s+$//sgi;
@@ -120,23 +119,20 @@ for(my $i=0;$i<=$#stmts;$i++){
         s/^\s+|\s+$//sgi;
         s/#######(\d+)#######/$str[$1]/sgie;
 
-        if(m/^\s*set\s+(\w+)/si){
-            $setcmd{$1} = $_;
-            next;
-        }elsif(m/^\s*add\s+file\s+([^\n]+)/si){
-            $addfile{$1} = $_;
+        if(m/^\s*set\s+/si || m/\n\s*set\s+/si || m/^\s*add\s+file/si || m/\n\s*add\s+file/si){
+            push @metacommands,$_;
             next;
         }
 
         if($args{debug}){
             print "-- query $i, depends on: ".join(", ",@depdedup)."\n";
-            print join("",sort map { "$_;\n" } (values %addfile,values %setcmd));
+            print join("",map { "$_;\n" } @metacommands);
             print $_."\n;\n";
         }
         if($args{gensql}){
             open my $out2,">$args{prefix}$i.sql" or die $!;            
             print $out2 "-- query $i, depends on: ".join(", ",@depdedup)."\n";
-            print join("",sort map { "$_;\n" } (values %addfile,values %setcmd));
+            print $out2 join("",map { "$_;\n" } @metacommands);
             print $out2 $_."\n;\n";
             close $out2;
         }
@@ -144,4 +140,5 @@ for(my $i=0;$i<=$#stmts;$i++){
     }
 }
 close $out if $out;
+
 
