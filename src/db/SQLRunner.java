@@ -675,6 +675,19 @@ public class SQLRunner {
 
         String nullval = getEvalProperty("nullval","");
 
+        // trim output strings (default, yes!)
+        boolean outputTrimStrings = true;
+        if(getEvalProperty("trim","on").equals("off")){
+            outputTrimStrings = false;
+        }
+        
+        // do not replace delimiter in output strings.
+        boolean outputFixDelim = true;
+        if(getEvalProperty("fixdelim","on").equals("off")){
+            outputFixDelim = false;
+        }
+        
+
         //
         // determine output format
         //
@@ -734,9 +747,13 @@ public class SQLRunner {
                         else sb.append(nullval);                        
                     } else {                        // treat everything else as string.
                         String s = rs.getString(i);
-                        if(!rs.wasNull())
-                            //sb.append(s);
-                            sb.append(s.replace(delimChar,delimReplace).trim());    // trim output strings.
+                        if(!rs.wasNull()){                            
+                            if(outputFixDelim)
+                                s = s.replace(delimChar,delimReplace);
+                            if(outputTrimStrings)
+                                s = s.trim();
+                            sb.append(s);
+                        }
                         else sb.append(nullval);                        
                     }
                     sb.append(delim);
