@@ -37,6 +37,7 @@ die qq(usage: [ls] | $0 [cmd='command \$_'] [threads=16]
 
         {dep=3,4,5} dependency definition; this command depends on those command ids.
         {id=whatever} define current command id, default is line number.
+        {mutex=3,4,5} the job aquires mutex on 3, 4, 5.
 
     threads parameter may be a filename. on each iteration $0 will check for changes.
     
@@ -51,7 +52,7 @@ die qq(usage: [ls] | $0 [cmd='command \$_'] [threads=16]
 
 my $ret = 0;
 my $numProcs=0;
-my (@cmdqueue,%state,%pid2id);
+my (@cmdqueue,%state,%pid2id,%mutex);
 my $done = 0;
 
 # attempt to recover from a previously created log file.
@@ -78,14 +79,18 @@ while(!$done){
 
     # if failed depencendy, then fail job
     for my $o (@cmdqueue){
-        map {  $o->{failed} = 1 if $state{$_}{failed} } @{$o->{dep}};        
+        map {  $o->{failed} = 1 if $state{$_}{failed} } @{$o->{dep}};
     }
     
     # removed failed jobs from command queue.
     @cmdqueue = grep { !$_->{failed} } @cmdqueue;
 
     # pick a command from command queue that we can run right now (all dependencies satisfied)
-    my ($cmdo) = grep { my @a=grep { !$state{$_}{done} } @{$_->{dep}};$#a==-1 } @cmdqueue;
+    my ($cmdo) = grep { 
+        my @a = grep { !$state{$_}{done} } @{$_->{dep}};    # all dependencies
+        my @b = grep { $mutex{$_} } @{$_->{mutex}};        # all mutex locks
+        $#a==-1 && $#b==-1
+    } @cmdqueue;
 
     # if none exists, while cannot find command, read stdin, keep on adding to command queue.
     while(!$cmdo){
@@ -97,6 +102,7 @@ while(!$done){
         $o = $state{ $o->{id} } if defined $state{ $o->{id} };
         $state{ $o->{id} } = $o;
         $o->{dep} = [split/\s*,\s*/,$1] if s/\{dep=\s*(.*?)\s*\}//si;
+        $o->{mutex} = [split/\s*,\s*/,$1] if s/\{mutex=\s*(.*?)\s*\}//si;
         $o->{cmd} = $_;
         $o->{tim} = gettim();
         if($o->{done}){ # is it already done?
@@ -107,7 +113,11 @@ while(!$done){
         }
 
         # pick a command from command queue that we can run right now (all dependencies satisfied)
-        ($cmdo) = grep { my @a=grep { !$state{$_}{done} } @{$_->{dep}};$#a==-1 } @cmdqueue;
+        ($cmdo) = grep { 
+            my @a = grep { !$state{$_}{done} } @{$_->{dep}};    # all dependencies
+            my @b = grep { $mutex{$_} } @{$_->{mutex}};        # all mutex locks
+            $#a==-1 && $#b==-1
+        } @cmdqueue;
     }
 
     # if still nothing to run...
@@ -138,6 +148,7 @@ while(!$done){
             $pid2id{$pid}=$cmdo->{id};
             $state{$cmdo->{id}}{running} = 1;
             $state{$cmdo->{id}}{tim} = gettim();
+            map { $mutex{$_}=1 } @{$cmdo->{mutex}};     # mutex locks.
             $numProcs++;
             writelog("$cmdo->{tim}: STARTED: ".
                 join(", ",map { $_."=".$cmdo->{$_} } 
@@ -188,6 +199,9 @@ sub waitForChild {
         $chld->{etim} = gettim();       # record when process finished.
         $chld->{ret} = $err;            # record return code.
         $chld->{running} = 0;         # not running anymore.
+
+        map { delete $mutex{$_}; } @{$chld->{mutex}};     # remvoe mutex locks.
+
         if( $err ){        # command failed
             $chld->{failed} = 1;         # record failure.
             writelog("$chld->{etim}: FAILED: ".join(", ",map { $_."=".$chld->{$_} } qw(id pid ret tim etim cmd))."\n");
@@ -223,8 +237,13 @@ sub getMaxProcs {
 
 # grab current timestamp
 sub gettim {
+    my ($f) = @_;
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
-    return sprintf("%04d%02d%02d%02d%02d%02d",$year+1900,$mon+1,$mday,$hour,$min,$sec);
+    if($f){
+        return sprintf("%04d-%02d-%02d %02d:%02d:%02d",$year+1900,$mon+1,$mday,$hour,$min,$sec);
+    }else{
+        return sprintf("%04d%02d%02d%02d%02d%02d",$year+1900,$mon+1,$mday,$hour,$min,$sec);
+    }
 }
 
 sub writelog {
