@@ -48,12 +48,16 @@ die qq(usage: [ls] | $0 [cmd='command \$_'] [threads=16]
 
     log=FILE    if specified, writes event log (can be used for recovery).
     recover     if specified, attempts to recover using the log file.
+    restart=N   if specified, will restart failed jobs N times.
 ) unless $args{cmd};
 
 my $ret = 0;
 my $numProcs=0;
 my (@cmdqueue,%state,%pid2id,%mutex);
 my $done = 0;
+
+# don't restart by default.
+$args{restart} = 0 unless defined $args{restart};
 
 # attempt to recover from a previously created log file.
 if($args{recover} && -f $args{log}){
@@ -202,9 +206,16 @@ sub waitForChild {
 
         map { delete $mutex{$_}; } @{$chld->{mutex}};     # remvoe mutex locks.
 
-        if( $err ){        # command failed
-            $chld->{failed} = 1;         # record failure.
-            writelog("$chld->{etim}: FAILED: ".join(", ",map { $_."=".$chld->{$_} } qw(id pid ret tim etim cmd))."\n");
+        if( $err ){        # command failed   
+            $chld->{restartcnt}++;
+            if($chld->{restartcnt} <= $args{restart}){
+                writelog("$chld->{etim}: FAILED, WILL RESTART (restart count: ". $chld->{restartcnt}.")...: ". join(", ",map { $_."=".$chld->{$_} } qw(id pid ret tim etim cmd))."\n");
+                push @cmdqueue, $chld;  # add job to end of queue.
+                $err=0;     # clear error.
+            }else{
+                writelog("$chld->{etim}: FAILED: ".join(", ",map { $_."=".$chld->{$_} } qw(id pid ret tim etim cmd))."\n");
+                $chld->{failed} = 1;         # record failure.
+            }
         }else{          # command succeeded. 
             $chld->{done} = 1;
             writelog("$chld->{etim}: DONE: ".
