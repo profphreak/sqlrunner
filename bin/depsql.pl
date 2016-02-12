@@ -119,7 +119,8 @@ for(my $i=0;$i<=$#stmts;$i++){
         s/^\s+|\s+$//sgi;
         s/#######(\d+)#######/$str[$1]/sgie;
 
-        if(m/^\s*set\s+/si || m/\n\s*set\s+/si || m/^\s*add\s+file/si || m/\n\s*add\s+file/si){
+        if(m/^\s*set\s+/si || m/\n\s*set\s+/si || 
+                m/^\s*add\s+(file|jar)/si || m/\n\s*add\s+(file|jar)/si){
             push @metacommands,$_;
             next;
         }
