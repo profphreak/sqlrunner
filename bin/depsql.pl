@@ -79,12 +79,12 @@ for(my $i=0;$i<=$#stmts;$i++){
             push @{$usedtbls{$t}},$i;
         }
     }
-    if(m/drop\s+table\s+(\w+)/i){
-        my $t = lc $1;
+    if(m/drop\s+(table|view)\s+(\w+)/i){
+        my $t = lc $2;
         push @{$stmtdep[$i]},grep { $_ != $i } @{$usedtbls{$t}} if $usedtbls{$t};
         $tbls{$t} = $i;
-    }elsif(m/create\s+table\s+(\w+)/i){
-        $tbls{lc $1} = $i;
+    }elsif(m/create\s+(external\s*)?(table|view)\s+(\w+)/i){
+        $tbls{lc $3} = $i;
     }elsif(m/insert\s+(into|overwrite)\s+(table\s*)?(\w+)/i){
         $tbls{lc $3} = $i;
     }elsif(m/analyze(\s*table)\s+(\w+)/i){
