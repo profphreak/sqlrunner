@@ -93,23 +93,42 @@ public class SQLRunner {
      */
     public static String evalString(String val) {
         StringBuffer sb = new StringBuffer();
-        boolean found = false;
+        boolean found = true;
         if(val == null)
             return val;
         String[] ptrn = {
             "<\\?=\\s*\\$?(\\w+)\\s*\\?>",      // <?=$somevariable?> 
-            "\\\\?\\&\\&?(\\w+)\\.?",           // &&tdate, &tdate, \&tdate
+            "\\\\?\\&\\&(\\w+)\\.?",           // &&tdate, \&tdate
             "\\$\\{\\s*(\\w+)\\s*\\}\\.?"      // ${variable} 
             // "\\$(\\w+)\\.?"                     // $variable 
         };
-        for(String p : ptrn){
+
+        while(found){
+            found = false;
+            for(String p : ptrn){
+                sb.setLength(0);
+                Matcher matcher = Pattern.compile(p,Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(val);
+                while (matcher.find()) {
+                    String s = getEvalProperty(matcher.group(1),null);
+                    if(s == null)
+                        throw new IllegalStateException("unable to evaluate ["+val+"]. ('"+matcher.group(1)+"' is undefined).");
+                    found = true;                    
+                    matcher.appendReplacement(sb,Matcher.quoteReplacement(s));
+                }
+                matcher.appendTail(sb);
+                val = sb.toString();
+            }
+        }
+        {       // &tdate, -- this replacement does not cause an error if not found
             sb.setLength(0);
-            Matcher matcher = Pattern.compile(p,Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(val);
+            Matcher matcher = Pattern.compile("(\\&(\\w+)\\.?)",Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(val);
             while (matcher.find()) {
-                found = true;
-                String s = getEvalProperty(matcher.group(1),null);
-                if(s == null)
-                    throw new IllegalStateException("unable to evaluate ["+val+"]. ('"+matcher.group(1)+"' is undefined).");
+                String s = getEvalProperty(matcher.group(2),null);
+                if(s == null){
+                    s = matcher.group(1);       // leave alone in case not found.
+                }else{
+                    found = true;
+                }
                 matcher.appendReplacement(sb,Matcher.quoteReplacement(s));
             }
             matcher.appendTail(sb);
