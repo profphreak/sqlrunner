@@ -243,16 +243,58 @@ public class SQLRunner {
             // init driver.
             // 
             Class.forName( driverclass ).newInstance();
-        
-            // 
-            // connect.
-            //
-            connection = DriverManager.getConnection(
-                getProperty("_current_connection_url",null),
-                getProperty("_current_connection_user",null),
-                getProperty("_current_connection_pass",null)
-            );
 
+            boolean found_cntn_props = false;
+            // loop for all properties, find jdbc connection properties for current connection
+            Properties cntn_props = new Properties();
+            {
+                String prefix = "param_";
+                for( String k : props.stringPropertyNames() ){
+                    if(k.startsWith(prefix)){
+                        found_cntn_props = true;
+                        cntn_props.setProperty(k.substring(prefix.length()), getEvalProperty(k,null) );
+                    }
+                }
+                prefix = getEvalProperty("db","db")+"_param_";
+                for( String k : props.stringPropertyNames() ){
+                    if(k.startsWith(prefix)){
+                        found_cntn_props = true;
+                        cntn_props.setProperty(k.substring(prefix.length()), getEvalProperty(k,null) );
+                    }
+                }
+            }
+
+            
+            if(found_cntn_props){
+                if(getEvalProperty("log","off").equals("on")){
+                    System.out.println("-- found connection parameters; using alt connection method: "+getProperty("_current_connection_url",null));
+                    for( String k : cntn_props.stringPropertyNames() )
+                       System.out.println("-- param: "+k+"="+cntn_props.get(k));
+                }
+                cntn_props.setProperty("user",getProperty("_current_connection_user",null));
+                cntn_props.setProperty("password",getProperty("_current_connection_pass",null));
+                // 
+                // connect.
+                //
+                connection = DriverManager.getConnection(
+                    getProperty("_current_connection_url",null),
+                    cntn_props
+                );
+
+            }else{
+                if(getEvalProperty("log","off").equals("on"))
+                    System.out.println("-- using classic connection method: "+getProperty("_current_connection_url",null)); 
+
+                // 
+                // connect, using classic mode.
+                //
+                connection = DriverManager.getConnection(
+                    getProperty("_current_connection_url",null),
+                    getProperty("_current_connection_user",null),
+                    getProperty("_current_connection_pass",null)
+                );
+            }
+            
             // save this connection for later use.
             dbconnections.put(key.toString(),connection);
         }
