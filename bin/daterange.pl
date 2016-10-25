@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 use Date::Manip;
-&Date_Init("TZ=EST");
+# &Date_Init("TZ=EST");
 
 my ($start,$end) = @ARGV;
 
