@@ -29,6 +29,8 @@ if($args{help} || $args{'-help'} || $args{'--help'}){
 }
 
 my $input = <STDIN>;
+$input=~s/~NUMBER~0~0~0~1~DECIMAL\((\d+),(\d+)\)/~NUMBER~$1~$1~$2~1~DECIMAL/sgi;
+$input=~s/\(\d+\)|\(\d+,\d+\)//sgi;
 
 my $args = join(" ",map { "$_='$args{$_}'"} keys %args);
 
