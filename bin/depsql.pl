@@ -53,6 +53,8 @@ for my $p (@ARGV){
 
     next unless $_;    # skip unless read stuff
 
+    $_.=" ";            # make sure string ends with space.
+
     # apply environment variables.
     s/\$\{(\w+)\}/$ENV{$1}/sgie;
     s/\&\&?(\w+)/$ENV{$1}/sgie;
