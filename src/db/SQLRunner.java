@@ -1449,6 +1449,26 @@ public class SQLRunner {
                     ps.println(evalString(m[1]));
                 sb = "";
                 linenosql = 0;
+
+            }else if(
+                ((m = strmatch(line,"^\\s*sleep\\s*(\\d+\\.\\d+)")) != null) ||
+                ((m = strmatch(line,"^\\s*sleep\\s*(\\d+)")) != null) ||
+                ((m = strmatch(line,"^\\s*sleep\\s*'([^']+)'\\s*;?\\s*$")) != null) ||
+                ((m = strmatch(line,"^\\s*sleep\\s*[\"]?([^\"]+)[\"]?\\s*;?\\s*$")) != null)
+                ){
+                try {
+                    long n = (long)(1000.0 * Double.parseDouble(evalString(m[1])));
+                    if(getEvalProperty("log","off").equals("on")){
+                        System.out.printf("\n-- sleeping for %d milliseconds.\n",n);
+                    }
+                    Thread.sleep(n);
+                }catch(Exception e){
+                    if(getEvalProperty("log","off").equals("on")){
+                        System.out.printf("\n-- problem detected while sleeping.\n");
+                    }
+                }
+                sb = "";
+                linenosql = 0;
             }else if(
                 ((m = strmatch(line,"^\\s*spool\\s+'([^']+)'\\s*;?\\s*$")) != null) || 
                 ((m = strmatch(line,"^\\s*spool\\s+[\"]?([^\"]+)[\"]?\\s*;?\\s*$")) != null) 
