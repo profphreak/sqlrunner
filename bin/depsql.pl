@@ -30,6 +30,7 @@ die qq(usage:
         
         debug       dump output to stdout.
         prefix      output files have prefix: default is empty.
+        fulldep     generate full dependency depth.
 ) if $args{help};
 
 my @str;            # all strings
@@ -70,6 +71,7 @@ for my $p (@ARGV){
 }
 
 my @stmtdep = map { [] } @stmts;
+my @stmtdepfull = map { [] } @stmts;
 my (%usedtbls, %tbls);
 for(my $i=0;$i<=$#stmts;$i++){
     local $_ = $stmts[$i];
@@ -96,6 +98,16 @@ for(my $i=0;$i<=$#stmts;$i++){
         push @{$stmtdep[$i]},grep { $_ != $i } @{$usedtbls{$t}} if $usedtbls{$t};
         $tbls{lc $2} = $i;
     }
+
+    # dependency closure
+    my @stack = sort @{$stmtdep[$i]};
+    my %stack = ();
+    while(@stack){
+        my $j = shift @stack;
+        $stack{$j}=1;
+        push @stack,grep { !$stack{$_} } @{$stmtdep[$j]} if $stmtdep[$j];
+    }
+    @{$stmtdepfull[$i]} = sort {$a <=> $b} keys %stack;    
 }
 
 my $out;
@@ -129,17 +141,23 @@ for(my $i=0;$i<=$#stmts;$i++){
 
         if($args{debug}){
             print "-- query $i, depends on: ".join(", ",@depdedup)."\n";
+            print "-- query $i, fully depends on: ".join(", ",@{$stmtdepfull[$i]})."\n";            
             print join("",map { "$_;\n" } @metacommands);
             print $_."\n;\n";
         }
         if($args{gensql}){
-            open my $out2,">$args{prefix}$i.sql" or die $!;            
+            open my $out2,">$args{prefix}$i.sql" or die $!; 
             print $out2 "-- query $i, depends on: ".join(", ",@depdedup)."\n";
+            print $out2 "-- query $i, fully depends on: ".join(", ",@{$stmtdepfull[$i]})."\n";            
             print $out2 join("",map { "$_;\n" } @metacommands);
             print $out2 $_."\n;\n";
             close $out2;
         }
-        print $out "$args{prefix}$i.sql{id=$i}{dep=".join(",",@depdedup)."}\n" if $out;
+        if($args{fulldep}){
+            print $out "$args{prefix}$i.sql{id=$i}{dep=".join(",",@{$stmtdepfull[$i]})."}\n" if $out;
+        }else{
+            print $out "$args{prefix}$i.sql{id=$i}{dep=".join(",",@depdedup)."}\n" if $out;
+        }
     }
 }
 close $out if $out;
