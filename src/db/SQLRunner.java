@@ -1417,13 +1417,19 @@ public class SQLRunner {
                 linenosql = 0;
             }else if(
                 ((m = strmatch(line,"^\\s*def(ine)?\\s+(\\w+)\\s*=\\s*'([^']+)'\\s*;?\\s*$")) != null) ||
-                ((m = strmatch(line,"^\\s*def(ine)?\\s+(\\w+)\\s*=\\s*[\"]?([^\"]+)[\"]?\\s*;?\\s*$")) != null)
+                ((m = strmatch(line,"^\\s*def(ine)?\\s+(\\w+)\\s*=\\s*[\"]([^\"]+)[\"]\\s*;?\\s*$")) != null) ||
+                ((m = strmatch(line,"^\\s*def(ine)?\\s+(\\w+)\\s*=\\s*([a-zA-Z0-9_]+)\\s*;?\\s*$")) != null) 
                 ){
                 // 
                 // handle the 'def ' command, ie:
                 //    def tdate='20071031';
                 // 
-                setProperty(m[2],evalString(m[3].trim()));
+                String name = m[2];
+                String value = evalString(m[3].trim());
+                setProperty(name,value);
+                if(getEvalProperty("log","off").equals("on")){
+                    System.out.printf("\n-- setting: "+name+" = "+value+"\n");
+                }
                 sb = "";
                 linenosql = 0;
             }else if(
