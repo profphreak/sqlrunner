@@ -1234,7 +1234,7 @@ public class SQLRunner {
                     "sd:-", "sd2::0",    // double dash comment
                     "sd:",  "s:-:1",    // not a comment.
 
-                    "s:#", "sc::0",      // comments
+                    //"s:#", "sc::0",      // comments
 
                     "s:",   "s::1"     // pass on everything else
                 };
