@@ -42,53 +42,53 @@ $args{timestampformat} = $args{dateformat}.' '.$args{timeformat} unless $args{ti
 #my $cmd = qq(echo 'select * from $args{table} where 0=1'| sqlrunner fhead $args - 2>/dev/null);
 my @cols = map { 
     s/^\s+|\s+$//sgi; 
-    my $r={}; 
+    my $r={};
     @{$r}{qw(name type size pres scale origtype null)}=split/~/;
     if($r->{type} =~ m/varchar/i && $r->{size} == 0){
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = qw(VARCHAR VARCHAR2 CHAR STRING STRING);
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = qw(VARCHAR VARCHAR2 CHAR STRING STRING);
     }elsif($r->{type} =~ m/varchar/i){
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
             ("VARCHAR($r->{size})","VARCHAR2($r->{size})",$r->{size} > 100 ? "CHAR($r->{size})" : "CHAR",  "STRING", "VARCHAR($r->{size})");
     }elsif($r->{type} =~ m/char/i && $r->{size} == 0){
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = qw(CHAR CHAR CHAR STRING STRING);
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = qw(CHAR CHAR CHAR STRING STRING);
     }elsif($r->{type} =~ m/char/i){
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
             ("CHAR($r->{size})","CHAR($r->{size})",$r->{size} > 100 ? "CHAR($r->{size})" : "CHAR","STRING", "STRING");
     }elsif($r->{type} =~ m/number/i && $r->{pres} > 0 && $r->{scale} > 0){
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
             ("NUMERIC($r->{pres},$r->{scale})",
             "NUMBER($r->{pres},$r->{scale})","DECIMAL EXTERNAL","DOUBLE","DECIMAL($r->{pres},$r->{scale})");
     }elsif($r->{type} =~ m/number/i && $r->{pres} > 0){
         if($r->{pres} == 10){
-            @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+            @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
                 ("INT4",
                     "NUMBER($r->{pres})","INTEGER EXTERNAL","INT", "INT");
         }elsif($r->{pres} == 19){
-            @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+            @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
                 ("INT8",
                     "NUMBER($r->{pres})","INTEGER EXTERNAL","INT","BIGINT");
         }else{
-            @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+            @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
                 ("NUMERIC($r->{pres})",
                     "NUMBER($r->{pres})","INTEGER EXTERNAL","INT","INT");
         }
     }elsif($r->{type} =~ m/number/i){
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
             ("DOUBLE PRECISION",
             "NUMBER","DECIMAL EXTERNAL","DOUBLE","DOUBLE");
     }elsif($r->{type} =~ m/date/i){
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
             ("DATE","DATE","DATE 'YYYYMMDD'","STRING","DATE");
     }elsif($r->{type} =~ m/timestamp/i){
         my $name = $r->{name};
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
             ("TIMESTAMP","TIMESTAMP",qq{TIMESTAMP "to_timestamp(:$name, '$args{timestampformat}')" },"STRING","TIMESTAMP");
     }elsif($r->{type} =~ m/time/i){
         my $name = $r->{name};
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
             ("TIME","DATE",qq{DATE "to_date(:$name, '$args{timeformat}')"},"STRING","STRING"); 
     }else{
-        @{$r}{qw(nztype oratype oractltype hivetype hive13type)} = 
+        @{$r}{qw(nztype oratype oractltype hivelegacytype hivetype)} = 
             ($r->{type},$r->{type},"CHAR","STRING","STRING");
     }
     $r
@@ -99,8 +99,8 @@ $args{to_table} = $args{table} unless $args{to_table};
 my $ddl2 = "";
 if($args{type} =~ m/nz|gp|pg/i){
     $ddl2 .= join(",",map {$_->{name}.' '.$_->{nztype}} @cols);
-}elsif($args{type} =~ m/hive13/i){
-    $ddl2 .= join(",",map {$_->{name}.' '.$_->{hive13type}} @cols);
+}elsif($args{type} =~ m/hivelegacy/i){
+    $ddl2 .= join(",",map {$_->{name}.' '.$_->{hivelegacytype}} @cols);
 }elsif($args{type} =~ m/hive/i){
     $ddl2 .= join(",",map {$_->{name}.' '.$_->{hivetype}} @cols);
 }else{
