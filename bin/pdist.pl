@@ -72,10 +72,10 @@ if($args{recover} && -f $args{log}){
 
 while(!$done){
 
-    my $maxThisTime = getMaxProcs();        # get current limit
+    my $maxThisTime = getNumParamValueFromFileOr("threads",1,4096);        # get current limit
     while($numProcs >= $maxThisTime){       # while over limit
         waitForChild();
-        $maxThisTime = getMaxProcs();       # update limit (perhaps changed). 
+        $maxThisTime = getNumParamValueFromFileOr("threads",1,4096);       # update limit (perhaps changed). 
     }
     last if $done;                          # done.
 
@@ -145,7 +145,9 @@ while(!$done){
         # remove it from command queue
         @cmdqueue = grep { $_->{id} ne $cmdo->{id} } @cmdqueue;
 
-        sleep $args{delay} if defined $args{delay};
+        my $delay = getNumParamValueFromFileOr("delay",0,1000000);
+        sleep $delay if $delay > 0;
+
         my $pid = fork();
         if($pid){           # parent
             $cmdo->{pid}=$pid;
@@ -233,17 +235,18 @@ sub waitForChild {
     return $pid;
 }
 
-sub getMaxProcs {
-    if(-f $args{threads}){          # if threads is a file... read that.
-        open my $in,$args{threads} or return 1;
+sub getNumParamValueFromFileOr {
+    my ($name,$min,$max) = @_;
+    if(-f $args{$name}){          # if threads is a file... read that.
+        open my $in,$args{$name} or return $min;
         local $_ = <$in>;
         close $in;
         chomp $_;
-        return $_ if $_ >= 1 && $_ <= 4096;   # sane[?] value.
-    }elsif($args{threads} =~ m/\d+/ && $args{threads} <= 4096 &&  $args{threads} >= 1){
-        return int($args{threads});
+        return $_ if $_ >= $min && $_ <= $max;   # sane[?] value.
+    }elsif($args{$name} =~ m/\d+/ && $args{$name} <= $max &&  $args{$name} >= $max){
+        return int($args{$name});
     }
-    return 1;
+    return $min;
 }
 
 # grab current timestamp
