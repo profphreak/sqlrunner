@@ -407,3 +407,89 @@ echo "select * from sometable limit 10"|sqlrunner db=somedb head outformat=text 
 
 SQLRunner also supports outformat=html.
 
+
+*******************************************************
+Reading output data with fhead as Spark DataFrame:
+
+Note, use this only as last resort. This is only needed if all you have is csv + fhead.
+If you already have data in database, have Spark pull it directly from there.
+If you already ahve data in ORC/Parquet file, or any other data file that has schema, use that.
+
+Note that date/timestamp format matches SQLRunner defaults (change if needed).
+
+import org.apache.spark.sql._
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.expressions._
+import org.apache.spark.sql.types._
+import scala.util.control.Exception._
+import org.apache.hadoop.io.LongWritable
+import org.apache.hadoop.io.Text
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat
+
+def readLocalFile(path:String) = {
+    val br = new java.io.BufferedReader(new java.io.FileReader(path))
+    val sb = new StringBuffer();
+    var ln = br.readLine();
+    while(ln != null){
+        sb.append(ln);
+        ln = br.readLine();
+    }
+    sb.toString
+}
+
+def readDelim (path:String, fheadstr:String, delim:String = ",", dateformat:String = "yyyyMMdd", timestampformat:String = "yyyyMMdd HH:mm:ss.SSS") = {
+ val fhead = fheadstr.split(",").map(_.split("~")).map(x=>(x(0),x(1),x(2).toInt,x(3).toInt,x(4).toInt) )
+ val conf = new Configuration
+ conf.set("textinputformat.record.delimiter", "\n")
+ val rdd = sc.
+  newAPIHadoopFile(path, classOf[TextInputFormat], classOf[LongWritable], classOf[Text], conf).
+  map(_._2.toString.replaceAll("[\\x7F-\\xFF\\r\\n]","") ).
+  map(x=>x.split(delim).map(x=>x.trim()).map(x=>if(x.length==0) null else if(x.equalsIgnoreCase("null")) null else x) ).
+  map(_.padTo(fhead.length,null)).map( Row.fromSeq(_) )  
+ val schema = StructType( fhead.map(x=>StructField(x._1,DataTypes.StringType, true) ) )
+ var blah = spark.sqlContext.createDataFrame(rdd,schema)
+ blah = fhead.filter(_._2.equals("NUMBER")).filter(_._5 == 0).filter(_._4 < 10).
+ foldLeft(blah)( (a,b) => a.withColumn(b._1,col(b._1).cast(IntegerType)))
+ blah = fhead.filter(_._2.equals("NUMBER")).filter(_._5 == 0).filter(_._4 >= 10).
+ foldLeft(blah)( (a,b) => a.withColumn(b._1,col(b._1).cast(LongType)))
+ blah = fhead.filter(_._2.equals("NUMBER")).filter(_._5 > 0).
+ foldLeft(blah)( (a,b) => a.withColumn(b._1,col(b._1).cast(DataTypes.createDecimalType(b._4,b._5))))
+ blah = fhead.filter(_._2.equals("NUMBER")).filter(_._5 > 0).
+ foldLeft(blah)( (a,b) => a.withColumn(b._1,col(b._1).cast(DataTypes.createDecimalType(b._4,b._5))))
+ val dateFormat = new java.text.SimpleDateFormat(dateformat)
+ val str2date_udf = udf((field:String) => { (allCatch opt new java.sql.Date(dateFormat.parse(field).getTime)) })
+ blah = fhead.filter(_._2.equals("DATE")).foldLeft(blah)( (a,b) => a.withColumn(b._1, str2date_udf( col(b._1) ) ))
+ val timestampFormat = new java.text.SimpleDateFormat(timestampformat)
+ val str2timestamp_udf = udf((field:String) => { (allCatch opt new java.sql.Timestamp(dateFormat.parse(field).getTime)) })
+ blah = fhead.filter(_._2.equals("TIMESTAMP")).foldLeft(blah)( (a,b) => a.withColumn(b._1, str2timestamp_udf( col(b._1) ) ))
+ blah
+}
+
+val df = readDelim("/path/to/data.csv.gz",readLocalFile("/path/to/data.fhead"));
+
+...then: 
+
+df.repartition(200).write.format("parquet").mode(SaveMode.Overwrite).save("/path/to/data");
+
+...or
+
+df.repartition(200).write.format("orc").mode(SaveMode.Overwrite).save("/path/to/data");
+
+
+Alternatively, you can read using "head" (where each field will be treated as "StringType").
+
+def readDelim (path:String, head:Seq[String], delim:String = ",") = {
+ val conf = new Configuration
+ conf.set("textinputformat.record.delimiter", "\n")
+ val rdd = sc.
+  newAPIHadoopFile(path, classOf[TextInputFormat], classOf[LongWritable], classOf[Text], conf).
+  map(_._2.toString.replaceAll("[\\x7F-\\xFF\\r\\n]","") ).
+  map(x=>x.split(delim).map(x=>x.trim()).map(x=>if(x.length==0) null else if(x.equalsIgnoreCase("null")) null else x) ).
+  map(_.padTo(head.length,null)).map( Row.fromSeq(_) )
+ val schema = StructType( head.map(StructField(_,DataTypes.StringType, true) ) )
+ spark.sqlContext.createDataFrame(rdd,schema)
+}
+
+
+
