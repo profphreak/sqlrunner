@@ -461,7 +461,7 @@ def readDelim (path:String, fheadstr:String, delim:String = ",", dateformat:Stri
  val str2date_udf = udf((field:String) => { (allCatch opt new java.sql.Date(dateFormat.parse(field).getTime)) })
  blah = fhead.filter(_._2.equals("DATE")).foldLeft(blah)( (a,b) => a.withColumn(b._1, str2date_udf( col(b._1) ) ))
  val timestampFormat = new java.text.SimpleDateFormat(timestampformat)
- val str2timestamp_udf = udf((field:String) => { (allCatch opt new java.sql.Timestamp(dateFormat.parse(field).getTime)) })
+ val str2timestamp_udf = udf((field:String) => { (allCatch opt new java.sql.Timestamp(timestampFormat.parse(field).getTime)) })
  blah = fhead.filter(_._2.equals("TIMESTAMP")).foldLeft(blah)( (a,b) => a.withColumn(b._1, str2timestamp_udf( col(b._1) ) ))
  blah
 }
