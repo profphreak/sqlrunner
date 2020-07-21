@@ -1552,8 +1552,8 @@ public class SQLRunner {
 
                     if(getEvalProperty("log","off").equals("on")){
                         long millis = 
-                            Long.parseLong( getProperty("_"+line+"_startmillis","0") ) - 
-                            Long.parseLong( getProperty("_"+line+"_endmillis","0"));
+                            Long.parseLong( getProperty("_"+line+"_endmillis","0") ) - 
+                            Long.parseLong( getProperty("_"+line+"_startmillis","0"));
                         System.out.printf("\n-- File %s completed in: %.2f minutes.\n",line,(millis/1000.0)/60.0);
                     }
                     // remove file from stack.
