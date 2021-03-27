@@ -198,15 +198,16 @@ public class SQLRunner {
         StringBuffer key = new StringBuffer();
 
         // if db name is "blah123", then use blah123_user for user, etc. (unless `user' is defined).
-        for(String sufix : new String[]{"url","user","pass","driver"}){
+        for(String sufix : new String[]{"url","user","pass","driver","driverjar"}){
+
             String val = getEvalProperty(sufix,null);
             if(val == null)
                 val = getEvalProperty(getEvalProperty("db","db")+"_"+sufix,null);
             
             // if db_pass_cmd is defined, then run this command to get password.
             if(val == null || val.trim().length() == 0){
-                //if(getEvalProperty("log","off").equals("on"))
-                //    System.out.println("-- "+sufix+" is not defined.");
+                if(getEvalProperty("log","off").equals("on"))
+                    System.out.println("-- "+sufix+" is not defined.");
                 
                 // if value is null, check if _cmd is defined.
                 String cmd = getEvalProperty(getEvalProperty("db","db")+"_"+sufix+"_cmd",
@@ -220,13 +221,14 @@ public class SQLRunner {
             }
 
             // we -must- have url,user,pass,driver defined in environment.
-            if(val == null)
-                throw new IllegalStateException("undefined db ("+sufix+") connection info");
+            if(!sufix.equals("driverjar"))
+                if(val == null)
+                  throw new IllegalStateException("undefined db ("+sufix+") connection info");
 
             setProperty("_current_connection_"+sufix,val);
-
             // append to connection key (changing connection details will start a new connection).
             key.append(val+"|");
+
         }
         // note: default driver should probably be "sun.jdbc.odbc.JdbcOdbcDriver"
 
@@ -239,62 +241,57 @@ public class SQLRunner {
             if( driverclass.toLowerCase().indexOf("oracle") >= 0 ){
                 isdatetimestamp = true;
             }
-            //
-            // init driver.
-            // 
-            Class.forName( driverclass ).newInstance();
 
-            boolean found_cntn_props = false;
+            if(getEvalProperty("log","off").equals("on"))                
+                System.out.println("-- driver class: "+driverclass);
+
+            Driver jdbc_driver = null;
+            String driverjar = getProperty("_current_connection_driverjar",null);
+
+            if(driverjar == null){
+                // no jar file; assume driver is in classpath already.
+                jdbc_driver = (Driver)Class.forName( driverclass ).getDeclaredConstructor().newInstance();
+            }else{
+                // jar file specified, load jar file.
+                if(getEvalProperty("log","off").equals("on"))                
+                    System.out.println("-- driver jar: "+driverjar);            
+                java.net.URL u = new java.net.URL("jar:file:"+driverjar+"!/");
+		java.net.URLClassLoader ucl = new java.net.URLClassLoader(new java.net.URL[] { u });
+		jdbc_driver = (Driver)Class.forName(driverclass, true, ucl).getDeclaredConstructor().newInstance();
+	    }
+
             // loop for all properties, find jdbc connection properties for current connection
             Properties cntn_props = new Properties();
             {
                 String prefix = "param_";
                 for( String k : props.stringPropertyNames() ){
                     if(k.startsWith(prefix)){
-                        found_cntn_props = true;
                         cntn_props.setProperty(k.substring(prefix.length()), getEvalProperty(k,null) );
                     }
                 }
                 prefix = getEvalProperty("db","db")+"_param_";
                 for( String k : props.stringPropertyNames() ){
                     if(k.startsWith(prefix)){
-                        found_cntn_props = true;
                         cntn_props.setProperty(k.substring(prefix.length()), getEvalProperty(k,null) );
                     }
                 }
             }
 
-            
-            if(found_cntn_props){
-                if(getEvalProperty("log","off").equals("on")){
-                    System.out.println("-- found connection parameters; using alt connection method: "+getProperty("_current_connection_url",null));
-                    for( String k : cntn_props.stringPropertyNames() )
-                       System.out.println("-- param: "+k+"="+cntn_props.get(k));
-                }
-                cntn_props.setProperty("user",getProperty("_current_connection_user",null));
-                cntn_props.setProperty("password",getProperty("_current_connection_pass",null));
-                // 
-                // connect.
-                //
-                connection = DriverManager.getConnection(
-                    getProperty("_current_connection_url",null),
-                    cntn_props
-                );
-
-            }else{
-                if(getEvalProperty("log","off").equals("on"))
-                    System.out.println("-- using classic connection method: "+getProperty("_current_connection_url",null)); 
-
-                // 
-                // connect, using classic mode.
-                //
-                connection = DriverManager.getConnection(
-                    getProperty("_current_connection_url",null),
-                    getProperty("_current_connection_user",null),
-                    getProperty("_current_connection_pass",null)
-                );
+            if(getEvalProperty("log","off").equals("on")){
+                System.out.println("-- connecting to: "+getProperty("_current_connection_url",null));
+                for( String k : cntn_props.stringPropertyNames() )
+                    System.out.println("-- param: "+k+"="+cntn_props.get(k));
             }
-            
+            cntn_props.setProperty("user",getProperty("_current_connection_user",null));
+            cntn_props.setProperty("password",getProperty("_current_connection_pass",null));
+            // 
+            // connect.
+            //
+            connection = jdbc_driver.connect(
+                getProperty("_current_connection_url",null),
+                cntn_props
+            );
+           
             // save this connection for later use.
             dbconnections.put(key.toString(),connection);
         }
