@@ -224,10 +224,11 @@ public class SQLRunner {
             if(!sufix.equals("driverjar"))
                 if(val == null)
                   throw new IllegalStateException("undefined db ("+sufix+") connection info");
-
-            setProperty("_current_connection_"+sufix,val);
-            // append to connection key (changing connection details will start a new connection).
-            key.append(val+"|");
+            if(val != null){
+              setProperty("_current_connection_"+sufix,val);
+              // append to connection key (changing connection details will start a new connection).
+              key.append(val+"|");
+            }
 
         }
         // note: default driver should probably be "sun.jdbc.odbc.JdbcOdbcDriver"
