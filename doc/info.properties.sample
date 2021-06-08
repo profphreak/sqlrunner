@@ -8,6 +8,10 @@ dwprod_driver=org.postgresql.Driver
 dwprod_host=localhost
 dwprod_port=5432
 dwprod_url=jdbc:postgresql://&&host:&&port/&&dbname
+dwprod_driverjar=/usr/share/java/postgresql.jar
+
+# the driverjar is optional; the jar can be in classpath, or 
+# dropped in the ~/SQLRunner/jdbc folder (to be auto-included in classpath).
 
 dwprod_admin_user=dwprod
 dwprod_admin_pass=s0meB3tt3rPa55w0rd
