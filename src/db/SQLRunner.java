@@ -203,12 +203,20 @@ public class SQLRunner {
             System.out.println("-----------------------------------");
         }
 
+        // skip is similar to pretend/debug, but can be used to do flow control
+        // any value other than 0 will skip queries.
+        if(!getEvalProperty("skip","0").equals("0")){
+            if(getEvalProperty("log","off").equals("on"))
+                System.out.println("-- In skip mode. Not running query.");
+            return;
+        }
+
         if(getEvalProperty("pretend","off").equals("on") || getEvalProperty("debug","off").equals("on")){
             if(getEvalProperty("log","off").equals("on"))
                 System.out.println("-- In pretend mode. Not running query.");
             return;
         }
-
+        
         // connection key (catenated connection info).
         StringBuffer key = new StringBuffer();
 
@@ -1431,7 +1439,7 @@ public class SQLRunner {
             }else if(
                 ((m = strmatch(line,"^\\s*def(ine)?\\s+(\\w+)\\s*=\\s*'([^']+)'\\s*;?\\s*$")) != null) ||
                 ((m = strmatch(line,"^\\s*def(ine)?\\s+(\\w+)\\s*=\\s*[\"]([^\"]+)[\"]\\s*;?\\s*$")) != null) ||
-                ((m = strmatch(line,"^\\s*def(ine)?\\s+(\\w+)\\s*=\\s*([a-zA-Z0-9_]+)\\s*;?\\s*$")) != null) 
+                ((m = strmatch(line,"^\\s*def(ine)?\\s+(\\w+)\\s*=\\s*([a-zA-Z0-9_&.]+)\\s*;?\\s*$")) != null) 
                 ){
                 // 
                 // handle the 'def ' command, ie:
@@ -1685,6 +1693,7 @@ public class SQLRunner {
         setProperty("errors_default","on");
         setProperty("pretend_default","off");
         setProperty("debug_default","off");
+        setProperty("skip_default","0");
         setProperty("spool_default","stdout");
         setProperty("cmdseparator_default",";");
         setProperty("gocmd_default","/");
