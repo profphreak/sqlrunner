@@ -184,7 +184,22 @@ public class SQLRunner {
         if(getEvalProperty("log","off").equals("on")){
             System.out.println("\n--SQL START: "+new java.util.Date(qtim));
             System.out.println("-----------------------------------");
-            System.out.println( sql + ";" );
+
+            if(getEvalProperty("logln","off").equals("on")){
+                // print line numbers 
+                BufferedReader br1 = new BufferedReader(new StringReader(sql));
+                String ln1 = br1.readLine();
+                int lncnt=1;
+                while(ln1 != null){
+                    System.out.println(""+(lncnt++)+"\t" + ln1);
+                    ln1 = br1.readLine();
+                }
+                System.out.println(";");
+                br1.close();
+            }else{
+                System.out.println( sql + ";" );
+            }
+            
             System.out.println("-----------------------------------");
         }
 
@@ -1683,6 +1698,7 @@ public class SQLRunner {
         setProperty("amp","&");
         setProperty("tab","\t");
         setProperty("nullval","");
+        setProperty("logln_default","off");
         // 
         setProperty("tns","&&amp.&&amp.&&db._tns");
         setProperty("url","&&amp.&&amp.&&db._url");
