@@ -15,14 +15,14 @@ if [ $# == '0' ] || [ `echo "$@" |grep -- "-help"` ]; then
     exit;
 fi;
 
-export CLASSPATH="$CLASSPATH:$basedir/lib";
+export CLASSPATH="$basedir/lib:$CLASSPATH";
 for prop in `ls $basedir/lib/*jar $basedir/jdbc/*jar 2>/dev/null`; do
-    export CLASSPATH="$CLASSPATH:$prop";    
+    export CLASSPATH="$prop:$CLASSPATH";    
 done
 
-for prop in `find $HADOOP_HOME $HIVE_HOME -type f -iname "*jar" 2>/dev/null |grep -vi SLF4J|grep -vi log4j|grep -vi logging`; do
-    export CLASSPATH="$CLASSPATH:$prop";
-done
+#for prop in `find $HADOOP_HOME $HIVE_HOME $SPARK_HOME -type f -iname "*jar" 2>/dev/null |grep -vi SLF4J|grep -vi log4j|grep -vi logging`; do
+#    export CLASSPATH="$prop:$CLASSPATH";
+#done
 
 for prop in `ls $basedir/init/*properties $basedir/init/*sql 2>/dev/null`; do
     args="$args $prop";
