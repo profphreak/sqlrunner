@@ -451,11 +451,19 @@ public class SQLRunner {
                         statement.close(); 
                     } catch (SQLException e){ 
                         if(getEvalProperty("log","off").equals("on"))
-                            System.out.println(e.getMessage());                    
+                            System.out.println(e.getMessage());
                     }
                     // close spool file if not stdout
                     if(ps != null && ps != System.out)
-                        ps.close();                    
+                        ps.close();
+                    try { 
+                        if(getEvalProperty("log","off").equals("on"))
+                            System.out.println("-- closing all connections");
+                        closeAllConnections();
+                    } catch (Exception e){ 
+                        if(getEvalProperty("log","off").equals("on"))
+                            System.out.println(e.getMessage());
+                    }   
                 }
             };
 
