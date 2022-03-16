@@ -159,6 +159,24 @@ public class SQLRunner {
     }
 
     /**
+     * close all database connections
+     */
+    public static void closeAllConnections() throws Exception {
+        for (Map.Entry<String, Connection> entry : dbconnections.entrySet()){
+            String name = entry.getKey();
+            Connection conn = entry.getValue();            
+            if(getEvalProperty("log","off").equals("on"))
+                System.out.println("\n--closing connection to: "+conn);
+            try { 
+                conn.close(); 
+            } catch (Exception e) {
+                if(getEvalProperty("log","off").equals("on"))
+                    System.out.println("\n--some error closing connection to: "+conn);
+            }
+        }
+    }
+
+    /**
      * Run sql query
      */
     public static void sqlRun(String sql,final PrintStream ps) throws Exception {
@@ -1195,6 +1213,8 @@ public class SQLRunner {
             line = in.readLine();
             line = rtrim(line);
 
+            //TODO: line = evalString(line);
+
             // 
             // if EOF, exit.
             //
@@ -1599,6 +1619,7 @@ public class SQLRunner {
                 //
                 // exits the program.
                 //
+                closeAllConnections();
                 System.exit(0);
             }else if(strmatch(line,"^\\s*quit\\s*;?\\s*$") != null){
                 //
@@ -1763,6 +1784,7 @@ public class SQLRunner {
                 Long.parseLong( getProperty("_TOTAL_startmillis","0"));
             System.out.printf("\n-- Total SQLRunner execution time: %.2f minutes.\n",(millis/1000.0)/60.0);
         }
+        closeAllConnections();
         System.exit(0);   // workaround for Hive JDBC driver bug; it leaves threads around.
     }
 }
