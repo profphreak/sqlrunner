@@ -25,7 +25,7 @@ import java.util.zip.*;
  * SQLRunner
  *
  * Java utility to run SQL, dump data to CSV, etc.
- *
+ *TODO:i
  * @author Alex Sverdlov
  * @version 1.0.18
  */
@@ -1208,7 +1208,7 @@ public class SQLRunner {
                 }else{
                     System.out.printf("SQL[%s]",timestampFormat.format(new java.util.Date(System.currentTimeMillis())));
                     if(getEvalProperty("lineno","off").equals("on"))
-                        System.out.printf("("+lineno+")");
+                        System.out.print("("+lineno+")");
                     if(incomment)
                         System.out.print("--");
                     System.out.print("> ");
@@ -1477,7 +1477,7 @@ public class SQLRunner {
                 String value = evalString(m[3].trim());
                 setProperty(name,value);
                 if(getEvalProperty("log","off").equals("on")){
-                    System.out.printf("\n-- setting: "+name+" = "+value+"\n");
+                    System.out.print("\n-- setting: "+name+" = "+value+"\n");
                 }
                 sb = "";
                 linenosql = 0;
