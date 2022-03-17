@@ -1755,6 +1755,8 @@ public class SQLRunner {
             setProperty(envName,env.get(envName));
         }
 
+        try {
+
         for(String cmd : args){
             //
             // if someone types name=value in command line, then set it as environment.
@@ -1785,11 +1787,16 @@ public class SQLRunner {
             }
         }
 
+        }catch(Exception e){
+            closeAllConnections();   // ensure we close all connections upon exception death.
+            throw e;
+        }
+
         setProperty("_TOTAL_endmillis",""+System.currentTimeMillis());
         if(getEvalProperty("log","off").equals("on")){
             long millis = 
-                Long.parseLong( getProperty("_TOTAL_endmillis","0") ) - 
-                Long.parseLong( getProperty("_TOTAL_startmillis","0"));
+            Long.parseLong( getProperty("_TOTAL_endmillis","0") ) - 
+            Long.parseLong( getProperty("_TOTAL_startmillis","0"));
             System.out.printf("\n-- Total SQLRunner execution time: %.2f minutes.\n",(millis/1000.0)/60.0);
         }
         closeAllConnections();
