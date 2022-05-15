@@ -506,11 +506,23 @@ public class SQLRunner {
             if(getEvalProperty("log","off").equals("on")){
                 double d = ((otim - qtim) / 1000.0) / 60;
                 System.out.printf("\n--SQL END: "+new java.util.Date(otim)+"; %.2f min\n",d);
+                // create table statements do not appear to return
+                // an update count :-/
                 if(!rsout){
+                  long updateCount = -42;
+                  try {
+                    updateCount = statement.getLargeUpdateCount();
+                  } catch (java.lang.UnsupportedOperationException e){
+                    // System.out.println("-- SUPPRESSED JAVA EXCEPTION: "+e.getMessage());
                     // jdbc4 has a long (not int) version of this method.
                     // too bad drivers are stupid and fail at the execute step,
                     // and not during getUpdateCount step.
-                    System.out.println("-- UpdateCount: "+statement.getUpdateCount());
+                    updateCount = statement.getUpdateCount();
+                  } catch (Exception e){
+                    System.out.println("-- SUPPRESSED JAVA EXCEPTION: "+e.getMessage());
+                  }
+                  if(updateCount != -42) 
+                    System.out.println("-- UpdateCount: "+updateCount);
                 }
                 System.out.println("-----------------------------------");
             }
