@@ -243,7 +243,7 @@ sub getNumParamValueFromFileOr {
         close $in;
         chomp $_;
         return $_ if $_ >= $min && $_ <= $max;   # sane[?] value.
-    }elsif($args{$name} =~ m/\d+/ && $args{$name} <= $max &&  $args{$name} >= $max){
+    }elsif($args{$name} =~ m/\d+/ && $args{$name} <= $max &&  $args{$name} >= $min){
         return int($args{$name});
     }
     return $min;
