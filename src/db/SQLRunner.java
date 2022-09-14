@@ -1575,8 +1575,8 @@ public class SQLRunner {
                     
                 }
             }else if(
-                ((m = strmatch(line,"^\\s*@\\s*'([^']+)'\\s*;?\\s*$")) != null) || 
-                ((m = strmatch(line,"^\\s*@\\s*[\"]?([^\"]+)[\"]?\\s*;?\\s*$")) != null)
+                ((m = strmatch(line,"^\\s*@\\s*'([^';]+)'\\s*;?\\s*$")) != null) || 
+                ((m = strmatch(line,"^\\s*@\\s*[\"]?([^\";]+)[\"]?\\s*;?\\s*$")) != null)
                 ){
                 //
                 // recursively process a file
