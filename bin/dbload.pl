@@ -191,12 +191,14 @@ set environment variable: PGCLIENTENCODING=LATIN1
     $args{dbname}=`echo "echo &&$args{db}_dbname"|sqlrunner db=$args{db} -` unless defined $args{dbname};
     $args{user}=`echo "echo &&$args{db}_user"|sqlrunner db=$args{db} -` unless defined $args{user};
     $args{pass}=`echo "echo &&$args{db}_pass"|sqlrunner db=$args{db} -` unless defined $args{pass};
+    $args{port}=`echo "echo &&$args{db}_port"|sqlrunner db=$args{db} -` unless defined $args{port};
     
     map { $args{$_}=~s/^\s+|\s+$//sgi } qw(host dbname user pass);
     $ENV{PGPASSWORD} = $args{pass};
     $ENV{PGUSER} = $args{user};
     $ENV{PGDATABASE} = $args{dbname};
     $ENV{PGHOST} = $args{host};
+    $ENV{PGPORT} = $args{port};
 
     # drop table if specified.
     `echo "drop table $args{table}"|sqlrunner db=$args{db} - 2>/dev/null` if $args{drop};
